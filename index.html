@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DHT11 → ESP8266 → AWS IoT Core</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f5f2; --surface:#ffffff; --text:#1c1b19; --muted:#6b6a66;
+    --border:#e4e2dc; --accent:#c9622f; --accent2:#2f7d6b;
+    --code-bg:#1e1d1b; --code-text:#eae7e0; --chip:#efece5;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+    box-sizing:border-box;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15140f; --surface:#1c1b17; --text:#efece4; --muted:#a3a099;
+      --border:#332f28; --chip:#26241d; --code-bg:#0d0d0b; --code-text:#e7e4dc;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15140f; --surface:#1c1b17; --text:#efece4; --muted:#a3a099;
+    --border:#332f28; --chip:#26241d; --code-bg:#0d0d0b; --code-text:#e7e4dc;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top:calc(70px + env(safe-area-inset-top,0px));}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;line-height:1.6;}
+  a{color:var(--accent2);}
+  .wrap{max-width:840px;margin:0 auto;padding:0 20px 80px;}
+  header.hero{
+    background:linear-gradient(135deg,#c9622f 0%,#a34a20 100%);
+    color:#fff; padding:56px 20px 44px; text-align:center;
+  }
+  header.hero h1{font-size:clamp(28px,5vw,42px);margin:0 0 10px;font-weight:800;letter-spacing:-0.02em;}
+  header.hero p{margin:0;opacity:.92;font-size:16px;max-width:560px;margin:0 auto;}
+  .flowbar{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;}
+  .flowbar span{background:rgba(255,255,255,.15);padding:6px 12px;border-radius:20px;}
+  .flowbar .arrow{opacity:.7;padding:6px 2px;}
+  nav.toc{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:18px 22px;margin:-30px auto 40px;max-width:800px;box-shadow:0 8px 24px rgba(0,0,0,.06);
+  }
+  nav.toc h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;}
+  nav.toc ol{columns:2;column-gap:24px;margin:0;padding-left:18px;font-size:14px;}
+  nav.toc li{margin-bottom:6px;break-inside:avoid;}
+  nav.toc a{text-decoration:none;color:var(--text);}
+  nav.toc a:hover{color:var(--accent);}
+  section{margin:46px 0;}
+  h2.part{
+    display:flex;align-items:center;gap:12px;font-size:22px;font-weight:700;margin:0 0 16px;
+    scroll-margin-top:20px;
+  }
+  h2.part .num{
+    background:var(--accent);color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;
+    width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  h3{font-size:16px;margin:22px 0 8px;color:var(--accent2);}
+  p{margin:10px 0;}
+  ul,ol.steps{margin:10px 0;padding-left:22px;}
+  li{margin:4px 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin:14px 0;}
+  .wire{
+    font-family:'JetBrains Mono',monospace;font-size:14px;background:var(--code-bg);color:var(--code-text);
+    border-radius:10px;padding:16px 20px;overflow-x:auto;white-space:pre;
+  }
+  pre{
+    background:var(--code-bg);color:var(--code-text);border-radius:10px;padding:16px 18px;
+    overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.55;
+  }
+  code{font-family:'JetBrains Mono',monospace;background:var(--chip);padding:1px 6px;border-radius:5px;font-size:.9em;}
+  pre code{background:none;padding:0;}
+  .path{font-family:'JetBrains Mono',monospace;font-size:13.5px;background:var(--chip);border-radius:8px;padding:10px 14px;white-space:pre;overflow-x:auto;}
+  .menu{font-family:'JetBrains Mono',monospace;background:var(--chip);border-radius:8px;padding:10px 14px;font-size:13.5px;}
+  .menu b{color:var(--accent2);}
+  .warn{border-left:4px solid #c9622f;background:rgba(201,98,47,.08);padding:14px 18px;border-radius:8px;margin:14px 0;}
+  .warn strong{color:var(--accent);}
+  .ok{border-left:4px solid var(--accent2);background:rgba(47,125,107,.08);padding:14px 18px;border-radius:8px;margin:14px 0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:600px){.grid2{grid-template-columns:1fr;} nav.toc ol{columns:1;} header.hero{padding:44px 16px 34px;}}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
+  th{background:var(--chip);}
+  .checklist{list-style:none;padding:0;margin:10px 0;}
+  .checklist li{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:14.5px;}
+  .checklist input{margin-top:4px;flex-shrink:0;}
+  .badge{display:inline-block;background:var(--chip);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px;font-family:'JetBrains Mono',monospace;margin-right:6px;}
+  .diagram{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--code-bg);color:var(--code-text);border-radius:10px;padding:18px;overflow-x:auto;white-space:pre;line-height:1.4;}
+  footer{text-align:center;color:var(--muted);font-size:13px;padding:30px 20px;}
+  .top{position:fixed;bottom:18px;right:18px;background:var(--accent);color:#fff;border-radius:50%;width:42px;height:42px;
+    display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px;box-shadow:0 6px 16px rgba(0,0,0,.25);}
+
+  /* Welcome modal */
+  #welcomeOverlay{
+    position:fixed;inset:0;background:rgba(20,18,14,.55);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;
+    opacity:0;pointer-events:none;transition:opacity .25s ease;
+  }
+  #welcomeOverlay.show{opacity:1;pointer-events:auto;}
+  #welcomeModal{
+    background:var(--surface);color:var(--text);border-radius:18px;max-width:380px;width:100%;
+    padding:30px 26px 26px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35);
+    transform:translateY(14px) scale(.97);transition:transform .3s ease;border:1px solid var(--border);
+  }
+  #welcomeOverlay.show #welcomeModal{transform:translateY(0) scale(1);}
+  #welcomeModal .icon{
+    width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#c9622f,#a34a20);
+    display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px;color:#fff;
+  }
+  #welcomeModal h3{margin:0 0 8px;font-size:19px;font-weight:800;}
+  #welcomeModal p{margin:0 0 20px;font-size:14px;color:var(--muted);line-height:1.55;}
+  #welcomeModal button{
+    background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px 22px;
+    font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;
+  }
+  #welcomeModal button:hover{opacity:.88;}
+</style>
+</head>
+<body>
+
+<div id="welcomeOverlay">
+  <div id="welcomeModal">
+    <div class="icon">🌡️</div>
+    <h3>Thanks for visiting!</h3>
+    <p>This guide was made by <strong>Students of CSE B, Year 2024 – 2027</strong> — hope it helps you get your DHT11 talking to AWS IoT Core. Happy building! 🚀</p>
+    <button id="welcomeClose">Let's start →</button>
+  </div>
+</div>
+
+
+<header class="hero">
+  <h1>DHT11 → ESP8266 → AWS IoT Core</h1>
+  <p>A complete zero-to-working beginner walkthrough — sensor, secure MQTT/TLS, and live data in the AWS console.</p>
+  <div class="flowbar">
+    <span>DHT11</span><span class="arrow">→</span>
+    <span>ESP8266 NodeMCU</span><span class="arrow">→</span>
+    <span>AWS IoT Core</span><span class="arrow">→</span>
+    <span>MQTT Test Client</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#a">A. What you need</a></li>
+    <li><a href="#b">B. Wire the DHT11</a></li>
+    <li><a href="#c">C. Install Arduino IDE</a></li>
+    <li><a href="#d">D. Install ESP8266 support</a></li>
+    <li><a href="#e">E. Select your board</a></li>
+    <li><a href="#f">F. Install libraries</a></li>
+    <li><a href="#g">G. Test the DHT11 sensor</a></li>
+    <li><a href="#i">I–N. Set up AWS IoT (Thing, cert, policy)</a></li>
+    <li><a href="#o">O–P. Download &amp; organize certificates</a></li>
+    <li><a href="#q">Q–V. Install &amp; test LittleFS uploader</a></li>
+    <li><a href="#w">W. Get your AWS endpoint</a></li>
+    <li><a href="#x">X–Z. The final sketch &amp; upload order</a></li>
+    <li><a href="#ab">AB. See data arrive in AWS</a></li>
+    <li><a href="#ad">AD. Troubleshooting</a></li>
+    <li><a href="#af">AF. Full checklist</a></li>
+  </ol>
+</nav>
+
+<section id="a">
+  <h2 class="part"><span class="num">A</span>What you need</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>Hardware</h3>
+      <ul><li>ESP8266 NodeMCU</li><li>DHT11 sensor</li><li>USB cable</li><li>Computer + Wi‑Fi</li></ul>
+    </div>
+    <div class="card">
+      <h3>Accounts &amp; software</h3>
+      <ul><li>AWS account (IoT Core)</li><li>Arduino IDE 2.2.1+</li><li>ESP8266 board package</li><li>DHT, PubSubClient, LittleFS uploader</li></ul>
+    </div>
+  </div>
+</section>
+
+<section id="b">
+  <h2 class="part"><span class="num">B</span>Wire the DHT11 to the ESP8266</h2>
+  <p>If you have the common 3‑pin DHT11 module:</p>
+  <div class="wire">DHT11 VCC   ──────  NodeMCU 3V3
+DHT11 DATA  ──────  NodeMCU D4
+DHT11 GND   ──────  NodeMCU GND</div>
+  <p>Bare 4‑pin DHT11 (no module board)? Add a <strong>pull‑up resistor</strong> (≈10kΩ) between DATA and VCC.</p>
+</section>
+
+<section id="c">
+  <h2 class="part"><span class="num">C</span>Install Arduino IDE</h2>
+  <p>Download and install <strong>Arduino IDE</strong> from the official site, then open it. Already installed? Skip ahead.</p>
+</section>
+
+<section id="d">
+  <h2 class="part"><span class="num">D</span>Install ESP8266 board support</h2>
+  <h3>D1 — Add the boards URL</h3>
+  <div class="menu"><b>File</b> → <b>Preferences</b> → paste into "Additional boards manager URLs":</div>
+  <pre><code>https://arduino.esp8266.com/stable/package_esp8266com_index.json</code></pre>
+  <h3>D2 — Install the package</h3>
+  <div class="menu"><b>Tools</b> → <b>Board</b> → <b>Boards Manager</b> → search <code>esp8266</code> → install <b>esp8266 by ESP8266 Community</b></div>
+</section>
+
+<section id="e">
+  <h2 class="part"><span class="num">E</span>Select your board &amp; port</h2>
+  <div class="menu"><b>Tools</b> → <b>Board</b> → <b>ESP8266 Boards</b> → <b>NodeMCU 1.0 (ESP‑12E Module)</b></div>
+  <div class="menu"><b>Tools</b> → <b>Port</b> → select your <code>COMx</code></div>
+</section>
+
+<section id="f">
+  <h2 class="part"><span class="num">F</span>Install libraries</h2>
+  <div class="menu"><b>Sketch</b> → <b>Include Library</b> → <b>Manage Libraries</b> — install each:</div>
+  <ul>
+    <li><strong>DHT sensor library</strong> by Adafruit</li>
+    <li><strong>Adafruit Unified Sensor</strong> by Adafruit</li>
+    <li><strong>PubSubClient</strong> by Nick O'Leary</li>
+  </ul>
+</section>
+
+<section id="g">
+  <h2 class="part"><span class="num">G</span>Test the DHT11 before touching AWS</h2>
+  <p>Create a new sketch, save it as <code>AWS_DHT11</code>, paste this, and upload:</p>
+<pre><code>#include &lt;DHT.h&gt;
+#define DHTPIN D4
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  Serial.println("\nDHT11 Test");
+}
+
+void loop() {
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  if (isnan(temperature) || isnan(humidity)) {
+    Serial.println("DHT11 read failed!");
+    delay(2000);
+    return;
+  }
+  Serial.printf("Temperature: %.1f C\n", temperature);
+  Serial.printf("Humidity: %.1f %%\n", humidity);
+  Serial.println("----------------");
+  delay(2000);
+}</code></pre>
+  <p>Open <strong>Tools → Serial Monitor</strong> at <code>115200 baud</code>. If readings appear, your hardware works — move on.</p>
+</section>
+
+<section id="i">
+  <h2 class="part"><span class="num">I–N</span>Set up AWS IoT Core</h2>
+
+  <h3>I. Open IoT Core</h3>
+  <p>In the AWS Console, search <code>IoT Core</code> and open it. Confirm your region — e.g. <code>Asia Pacific (Mumbai) — ap-south-1</code>.</p>
+
+  <h3>J. Create the Thing</h3>
+  <div class="menu"><b>Manage</b> → <b>All devices</b> → <b>Things</b> → <b>Create thing</b> → <b>Create a single thing</b></div>
+  <p>Name it <code>ESP8266-DHT11</code> (avoid personal info in the name — AWS recommends against PII here).</p>
+
+  <h3>K. Create the certificate</h3>
+  <p>Choose <strong>Auto-generate a new certificate</strong> → <b>Next</b>. This X.509 certificate is how AWS authenticates the device.</p>
+
+  <h3>L. Create an IoT policy</h3>
+  <div class="menu"><b>Security</b> → <b>Policies</b> → <b>Create policy</b> — name it <code>ESP8266-DHT11-Policy</code></div>
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": "iot:Connect",   "Resource": "*" },
+    { "Effect": "Allow", "Action": "iot:Publish",   "Resource": "*" },
+    { "Effect": "Allow", "Action": "iot:Subscribe", "Resource": "*" },
+    { "Effect": "Allow", "Action": "iot:Receive",   "Resource": "*" }
+  ]
+}</code></pre>
+  <div class="warn"><strong>Note:</strong> This wildcard policy is fine for a first test. For a real device, scope <code>Resource</code> down to that device's specific topics and cert ARN.</div>
+
+  <h3>M. Attach the policy to the certificate</h3>
+  <p><b>Security → Certificates</b> → open your cert → <b>Actions → Attach policy</b> → select <code>ESP8266-DHT11-Policy</code> → <b>Attach</b>.</p>
+
+  <h3>N. Confirm the certificate is ACTIVE</h3>
+  <p>Open the certificate and check its status shows <span class="badge">ACTIVE</span>. If not, activate it — it must be active before the device can connect.</p>
+</section>
+
+<section id="o">
+  <h2 class="part"><span class="num">O–P</span>Download &amp; organize certificates</h2>
+  <p>On the certificate creation page, download all three files:</p>
+  <table>
+    <tr><th>File</th><th>Purpose</th></tr>
+    <tr><td>Device certificate (<code>xxxxx-certificate.pem.crt</code>)</td><td>Identifies your ESP8266 to AWS</td></tr>
+    <tr><td>Private key (<code>xxxxx-private.pem.key</code>)</td><td>Proves the device owns the certificate</td></tr>
+    <tr><td><code>AmazonRootCA1.pem</code></td><td>Lets the ESP8266 verify AWS's server</td></tr>
+  </table>
+  <div class="warn">
+    <strong>⚠️ The private key is a secret credential.</strong> Never share it, upload it to GitHub, screenshot it, or send it to anyone — including in a support request.
+  </div>
+  <p>Create a project folder and rename the files, ending with this structure:</p>
+  <div class="path">AWS_DHT11/
+├── AWS_DHT11.ino
+└── data/
+    ├── AmazonRootCA1.pem
+    ├── device.crt
+    └── private.key</div>
+</section>
+
+<section id="q">
+  <h2 class="part"><span class="num">Q–V</span>Install &amp; test the LittleFS uploader</h2>
+  <p>LittleFS stores the certificate files <em>on the ESP8266's flash</em>, separate from your code — so secrets never live inside the sketch.</p>
+
+  <h3>Q. Check your Arduino IDE version</h3>
+  <div class="menu"><b>Help</b> → <b>About Arduino IDE</b> — needs <b>2.2.1</b> or newer</div>
+
+  <h3>R. Install the plugin (Windows)</h3>
+  <ol class="steps">
+    <li>Close Arduino IDE.</li>
+    <li>Download the latest <code>.vsix</code> from the official <a href="https://github.com/earlephilhower/arduino-littlefs-upload/releases">arduino-littlefs-upload releases</a> page.</li>
+    <li>Create the folder <code>C:\Users\YOUR_USERNAME\.arduinoIDE\plugins</code> if it doesn't exist.</li>
+    <li>Copy the <code>.vsix</code> file into that <code>plugins</code> folder.</li>
+    <li>Reopen Arduino IDE.</li>
+  </ol>
+
+  <h3>S. Verify the command is available</h3>
+  <p>Open your sketch, press <code>Ctrl+Shift+P</code>, type <code>Upload LittleFS</code> — you should see <strong>Upload LittleFS to Pico/ESP8266/ESP32</strong>.</p>
+
+  <h3>T. Before uploading</h3>
+  <p>Confirm board = NodeMCU 1.0 (ESP‑12E), port is selected, and <strong>close the Serial Monitor</strong> (the uploader needs the port free).</p>
+
+  <h3>U. Upload the certificates</h3>
+  <p>With the <code>data/</code> folder in place, run <code>Ctrl+Shift+P</code> → <b>Upload LittleFS to Pico/ESP8266/ESP32</b> and wait for success.</p>
+
+  <h3>V. Confirm the files are on the device</h3>
+  <p>Temporarily upload this test sketch:</p>
+<pre><code>#include &lt;LittleFS.h&gt;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\nLittleFS Test\n----------------");
+  if (!LittleFS.begin()) { Serial.println("LittleFS FAILED!"); return; }
+  Serial.println("LittleFS mounted successfully!");
+  File root = LittleFS.open("/");
+  File file = root.openNextFile();
+  while (file) {
+    Serial.printf("File: %s | Size: %d\n", file.name(), file.size());
+    file = root.openNextFile();
+  }
+}
+void loop() {}</code></pre>
+  <div class="ok">Expect to see all three files listed with nonzero sizes. If so, you're ready for AWS.</div>
+</section>
+
+<section id="w">
+  <h2 class="part"><span class="num">W</span>Get your AWS IoT endpoint</h2>
+  <div class="menu">AWS IoT Core → <b>Settings</b> → copy the <b>Device data endpoint</b></div>
+  <p>It looks like <code>xxxxxxxxxxxxxx-ats.iot.ap-south-1.amazonaws.com</code>. AWS recommends the <code>iot:Data-ATS</code> endpoint type for new connections.</p>
+</section>
+
+<section id="x">
+  <h2 class="part"><span class="num">X–Z</span>The final sketch &amp; upload order</h2>
+  <p>Replace the LittleFS test code with the full program below. Only edit the four values marked <code>YOUR_...</code> — leave the rest as-is.</p>
+
+<pre><code>#include &lt;ESP8266WiFi.h&gt;
+#include &lt;LittleFS.h&gt;
+#include &lt;WiFiClientSecure.h&gt;
+#include &lt;PubSubClient.h&gt;
+#include &lt;DHT.h&gt;
+#include &lt;time.h&gt;
+
+// ---- WiFi & AWS settings ----
+const char* WIFI_SSID     = "YOUR_WIFI_NAME";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* AWS_ENDPOINT  = "YOUR-ENDPOINT-ats.iot.ap-south-1.amazonaws.com";
+const char* MQTT_TOPIC    = "home/esp8266/dht11";
+
+#define DHTPIN D4
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+WiFiClientSecure secureClient;
+PubSubClient mqttClient(secureClient);
+BearSSL::X509List*    rootCA     = nullptr;
+BearSSL::X509List*    deviceCert = nullptr;
+BearSSL::PrivateKey*  privateKey = nullptr;
+
+bool loadCertificates() {
+  Serial.println("\nLoading AWS certificates...");
+  File rootFile = LittleFS.open("/AmazonRootCA1.pem", "r");
+  if (!rootFile) { Serial.println("ERROR: AmazonRootCA1.pem not found!"); return false; }
+  rootCA = new BearSSL::X509List(rootFile, rootFile.size());
+  rootFile.close();
+
+  File certFile = LittleFS.open("/device.crt", "r");
+  if (!certFile) { Serial.println("ERROR: device.crt not found!"); return false; }
+  deviceCert = new BearSSL::X509List(certFile, certFile.size());
+  certFile.close();
+
+  File keyFile = LittleFS.open("/private.key", "r");
+  if (!keyFile) { Serial.println("ERROR: private.key not found!"); return false; }
+  privateKey = new BearSSL::PrivateKey(keyFile, keyFile.size());
+  keyFile.close();
+
+  Serial.println("AWS certificates loaded successfully!");
+  return true;
+}
+
+void connectWiFi() {
+  Serial.print("\nConnecting to WiFi");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.printf("\nWiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
+}
+
+void setClock() {
+  Serial.println("\nSynchronizing time...");
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  time_t now = time(nullptr);
+  int attempts = 0;
+  while (now < 8 * 3600 * 2 && attempts < 30) { delay(500); Serial.print("."); now = time(nullptr); attempts++; }
+  Serial.println(now >= 8 * 3600 * 2 ? "\nTime synchronized!" : "\nWARNING: Time sync failed.");
+}
+
+void connectAWS() {
+  while (!mqttClient.connected()) {
+    Serial.print("\nConnecting to AWS IoT...");
+    String clientID = "ESP8266-DHT11-" + String(ESP.getChipId());
+    if (mqttClient.connect(clientID.c_str())) {
+      Serial.println("CONNECTED!");
+    } else {
+      Serial.printf("FAILED, MQTT state = %d\n", mqttClient.state());
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\n================================\nESP8266 + DHT11 + AWS IoT Core\n================================");
+  dht.begin();
+
+  if (!LittleFS.begin()) { Serial.println("ERROR: LittleFS failed!"); return; }
+  if (!loadCertificates()) { Serial.println("Certificate loading failed!"); return; }
+
+  connectWiFi();
+  setClock();
+
+  secureClient.setTrustAnchors(rootCA);
+  secureClient.setClientRSACert(deviceCert, privateKey);
+  mqttClient.setServer(AWS_ENDPOINT, 8883);
+  connectAWS();
+}
+
+void loop() {
+  if (!mqttClient.connected()) connectAWS();
+  mqttClient.loop();
+
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  if (isnan(temperature) || isnan(humidity)) { Serial.println("DHT11 reading failed!"); delay(2000); return; }
+
+  String payload = "{\"device\":\"ESP8266-DHT11\",\"temperature\":" + String(temperature, 1) +
+                    ",\"humidity\":" + String(humidity, 1) + "}";
+
+  Serial.printf("\nTemperature: %.1f C | Humidity: %.1f %%\n", temperature, humidity);
+  Serial.println("MQTT Payload: " + payload);
+
+  bool success = mqttClient.publish(MQTT_TOPIC, payload.c_str());
+  Serial.println(success ? "AWS: Message published!" : "AWS: Publish FAILED!");
+
+  delay(5000);
+}</code></pre>
+
+  <h3>Upload order — do both, in order</h3>
+  <div class="grid2">
+    <div class="card"><strong>1. LittleFS upload</strong><br><code>Ctrl+Shift+P</code> → Upload LittleFS to Pico/ESP8266/ESP32 <br><span style="color:var(--muted)">(sends the 3 certificate files)</span></div>
+    <div class="card"><strong>2. Sketch upload</strong><br>Normal <b>Upload →</b> button <br><span style="color:var(--muted)">(sends AWS_DHT11.ino)</span></div>
+  </div>
+</section>
+
+<section id="ab">
+  <h2 class="part"><span class="num">AB</span>See the data arrive in AWS</h2>
+  <p>Open <strong>Tools → Serial Monitor</strong> at <code>115200</code> — you should see WiFi connect, time sync, then <code>CONNECTED!</code> and messages publishing every 5 seconds.</p>
+  <p>In AWS IoT Core, open <strong>MQTT test client → Subscribe to a topic</strong>, enter:</p>
+  <pre><code>home/esp8266/dht11</code></pre>
+  <p>Within a few seconds you'll see live JSON like:</p>
+  <pre><code>{
+  "device": "ESP8266-DHT11",
+  "temperature": 28.0,
+  "humidity": 63.0
+}</code></pre>
+  <div class="ok">🎉 Your DHT11 is now sending live data to AWS IoT Core over secure TLS.</div>
+
+  <h3>What each certificate does</h3>
+  <div class="diagram">AmazonRootCA1.pem  →  ESP8266 verifies it's really talking to AWS
+device.crt         →  AWS identifies this specific ESP8266
+private.key        →  ESP8266 proves it owns that certificate</div>
+</section>
+
+<section id="ad">
+  <h2 class="part"><span class="num">AD</span>Troubleshooting</h2>
+  <table>
+    <tr><th>Message</th><th>Likely fix</th></tr>
+    <tr><td><code>LittleFS failed!</code></td><td>Re-check board selection, re-run the LittleFS upload.</td></tr>
+    <tr><td><code>AmazonRootCA1.pem not found</code></td><td>File must be inside <code>data/</code>, not the sketch root — re-upload LittleFS.</td></tr>
+    <tr><td><code>device.crt / private.key not found</code></td><td>Confirm exact filenames inside <code>data/</code>.</td></tr>
+    <tr><td>WiFi won't connect</td><td>Check SSID/password, signal range, and that the network is 2.4GHz (ESP8266 can't use 5GHz).</td></tr>
+    <tr><td><code>MQTT state = -2</code></td><td>Check endpoint, WiFi, certs, and that the clock synced.</td></tr>
+    <tr><td><code>MQTT state = 5</code></td><td>Usually authorization — confirm cert is ACTIVE, policy is attached, and it allows <code>iot:Connect</code>.</td></tr>
+  </table>
+  <div class="warn"><strong>Time matters:</strong> TLS certificate validation depends on the ESP8266 having the correct time — that's why <code>configTime()</code> runs before connecting.</div>
+</section>
+
+<section id="af">
+  <h2 class="part"><span class="num">AF</span>Full checklist</h2>
+  <p>Work through this <em>in order</em> — don't skip ahead if a step isn't working yet.</p>
+  <ul class="checklist">
+    <li><input type="checkbox">Install ESP8266 board package</li>
+    <li><input type="checkbox">Select NodeMCU 1.0 (ESP‑12E)</li>
+    <li><input type="checkbox">Install DHT, Adafruit Unified Sensor, PubSubClient libraries</li>
+    <li><input type="checkbox">Test the DHT11 locally</li>
+    <li><input type="checkbox">Create AWS IoT Thing</li>
+    <li><input type="checkbox">Create &amp; activate certificate</li>
+    <li><input type="checkbox">Create IoT policy and attach it to the certificate</li>
+    <li><input type="checkbox">Download device cert, private key, and AmazonRootCA1.pem</li>
+    <li><input type="checkbox">Get the AWS IoT Data-ATS endpoint</li>
+    <li><input type="checkbox">Install the LittleFS uploader plugin</li>
+    <li><input type="checkbox">Put the 3 certificate files in <code>data/</code> and upload via LittleFS</li>
+    <li><input type="checkbox">Confirm files exist on the device</li>
+    <li><input type="checkbox">Fill in WiFi + AWS endpoint in the sketch, upload it</li>
+    <li><input type="checkbox">Open Serial Monitor, confirm "CONNECTED!"</li>
+    <li><input type="checkbox">Subscribe to <code>home/esp8266/dht11</code> in the MQTT test client and see live JSON</li>
+  </ul>
+
+  <h3>Where to go next</h3>
+  <div class="diagram">ESP8266 → AWS IoT Core → IoT Rule → DynamoDB → API → Web Dashboard</div>
+  <p>That path lets you store historical readings and graph them, instead of only watching live MQTT messages.</p>
+</section>
+
+</div>
+<footer>ESP8266 + DHT11 + AWS IoT Core — beginner build guide</footer>
+<a class="top" href="#" aria-label="Back to top">↑</a>
+
+<script>
+  var overlay = document.getElementById('welcomeOverlay');
+  var closeBtn = document.getElementById('welcomeClose');
+  window.addEventListener('load', function(){
+    setTimeout(function(){ overlay.classList.add('show'); }, 200);
+  });
+  function closeWelcome(){ overlay.classList.remove('show'); }
+  closeBtn.addEventListener('click', closeWelcome);
+  overlay.addEventListener('click', function(e){ if(e.target === overlay) closeWelcome(); });
+</script>
+</body>
+</html>
