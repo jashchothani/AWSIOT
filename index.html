@@ -3,357 +3,2617 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>DHT11 → ESP8266 → AWS IoT Core</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --bg:#f6f5f2; --surface:#ffffff; --text:#1c1b19; --muted:#6b6a66;
-    --border:#e4e2dc; --accent:#c9622f; --accent2:#2f7d6b;
-    --code-bg:#1e1d1b; --code-text:#eae7e0; --chip:#efece5;
-    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
-    box-sizing:border-box;
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#15140f; --surface:#1c1b17; --text:#efece4; --muted:#a3a099;
-      --border:#332f28; --chip:#26241d; --code-bg:#0d0d0b; --code-text:#e7e4dc;
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#15140f; --surface:#1c1b17; --text:#efece4; --muted:#a3a099;
-    --border:#332f28; --chip:#26241d; --code-bg:#0d0d0b; --code-text:#e7e4dc;
-  }
-  *{box-sizing:border-box;}
-  html{scroll-padding-top:calc(70px + env(safe-area-inset-top,0px));}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;line-height:1.6;}
-  a{color:var(--accent2);}
-  .wrap{max-width:840px;margin:0 auto;padding:0 20px 80px;}
-  header.hero{
-    background:linear-gradient(135deg,#c9622f 0%,#a34a20 100%);
-    color:#fff; padding:56px 20px 44px; text-align:center;
-  }
-  header.hero h1{font-size:clamp(28px,5vw,42px);margin:0 0 10px;font-weight:800;letter-spacing:-0.02em;}
-  header.hero p{margin:0;opacity:.92;font-size:16px;max-width:560px;margin:0 auto;}
-  .flowbar{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:13px;}
-  .flowbar span{background:rgba(255,255,255,.15);padding:6px 12px;border-radius:20px;}
-  .flowbar .arrow{opacity:.7;padding:6px 2px;}
-  nav.toc{
-    background:var(--surface);border:1px solid var(--border);border-radius:14px;
-    padding:18px 22px;margin:-30px auto 40px;max-width:800px;box-shadow:0 8px 24px rgba(0,0,0,.06);
-  }
-  nav.toc h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;}
-  nav.toc ol{columns:2;column-gap:24px;margin:0;padding-left:18px;font-size:14px;}
-  nav.toc li{margin-bottom:6px;break-inside:avoid;}
-  nav.toc a{text-decoration:none;color:var(--text);}
-  nav.toc a:hover{color:var(--accent);}
-  section{margin:46px 0;}
-  h2.part{
-    display:flex;align-items:center;gap:12px;font-size:22px;font-weight:700;margin:0 0 16px;
-    scroll-margin-top:20px;
-  }
-  h2.part .num{
-    background:var(--accent);color:#fff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;
-    width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  }
-  h3{font-size:16px;margin:22px 0 8px;color:var(--accent2);}
-  p{margin:10px 0;}
-  ul,ol.steps{margin:10px 0;padding-left:22px;}
-  li{margin:4px 0;}
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin:14px 0;}
-  .wire{
-    font-family:'JetBrains Mono',monospace;font-size:14px;background:var(--code-bg);color:var(--code-text);
-    border-radius:10px;padding:16px 20px;overflow-x:auto;white-space:pre;
-  }
-  pre{
-    background:var(--code-bg);color:var(--code-text);border-radius:10px;padding:16px 18px;
-    overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.55;
-  }
-  code{font-family:'JetBrains Mono',monospace;background:var(--chip);padding:1px 6px;border-radius:5px;font-size:.9em;}
-  pre code{background:none;padding:0;}
-  .path{font-family:'JetBrains Mono',monospace;font-size:13.5px;background:var(--chip);border-radius:8px;padding:10px 14px;white-space:pre;overflow-x:auto;}
-  .menu{font-family:'JetBrains Mono',monospace;background:var(--chip);border-radius:8px;padding:10px 14px;font-size:13.5px;}
-  .menu b{color:var(--accent2);}
-  .warn{border-left:4px solid #c9622f;background:rgba(201,98,47,.08);padding:14px 18px;border-radius:8px;margin:14px 0;}
-  .warn strong{color:var(--accent);}
-  .ok{border-left:4px solid var(--accent2);background:rgba(47,125,107,.08);padding:14px 18px;border-radius:8px;margin:14px 0;}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  @media (max-width:600px){.grid2{grid-template-columns:1fr;} nav.toc ol{columns:1;} header.hero{padding:44px 16px 34px;}}
-  table{width:100%;border-collapse:collapse;font-size:14px;}
-  th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
-  th{background:var(--chip);}
-  .checklist{list-style:none;padding:0;margin:10px 0;}
-  .checklist li{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:14.5px;}
-  .checklist input{margin-top:4px;flex-shrink:0;}
-  .badge{display:inline-block;background:var(--chip);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px;font-family:'JetBrains Mono',monospace;margin-right:6px;}
-  .diagram{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--code-bg);color:var(--code-text);border-radius:10px;padding:18px;overflow-x:auto;white-space:pre;line-height:1.4;}
-  footer{text-align:center;color:var(--muted);font-size:13px;padding:30px 20px;}
-  .top{position:fixed;bottom:18px;right:18px;background:var(--accent);color:#fff;border-radius:50%;width:42px;height:42px;
-    display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px;box-shadow:0 6px 16px rgba(0,0,0,.25);}
 
-  /* Welcome modal */
-  #welcomeOverlay{
-    position:fixed;inset:0;background:rgba(20,18,14,.55);backdrop-filter:blur(3px);
-    display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;
-    opacity:0;pointer-events:none;transition:opacity .25s ease;
-  }
-  #welcomeOverlay.show{opacity:1;pointer-events:auto;}
-  #welcomeModal{
-    background:var(--surface);color:var(--text);border-radius:18px;max-width:380px;width:100%;
-    padding:30px 26px 26px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.35);
-    transform:translateY(14px) scale(.97);transition:transform .3s ease;border:1px solid var(--border);
-  }
-  #welcomeOverlay.show #welcomeModal{transform:translateY(0) scale(1);}
-  #welcomeModal .icon{
-    width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#c9622f,#a34a20);
-    display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px;color:#fff;
-  }
-  #welcomeModal h3{margin:0 0 8px;font-size:19px;font-weight:800;}
-  #welcomeModal p{margin:0 0 20px;font-size:14px;color:var(--muted);line-height:1.55;}
-  #welcomeModal button{
-    background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px 22px;
-    font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;
-  }
-  #welcomeModal button:hover{opacity:.88;}
+<title>DHT11 → ESP8266 → AWS IoT Core</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+    --bg:#f5f4f0;
+    --surface:#ffffff;
+    --surface-2:#faf9f6;
+    --text:#171614;
+    --muted:#706e68;
+    --border:#e4e1da;
+
+    --accent:#d45f2a;
+    --accent-dark:#a9441d;
+    --green:#23816d;
+    --blue:#4779d9;
+    --purple:#7656c9;
+
+    --code:#171614;
+    --code-text:#eeeae2;
+
+    --shadow:0 12px 40px rgba(30,25,15,.08);
+    --shadow-lg:0 25px 80px rgba(30,25,15,.15);
+
+    --radius:18px;
+}
+
+:root[data-theme="dark"]{
+    --bg:#0d0e0d;
+    --surface:#171816;
+    --surface-2:#1c1e1b;
+    --text:#f1eee7;
+    --muted:#a19f97;
+    --border:#30322e;
+
+    --accent:#ef7040;
+    --accent-dark:#bd4e25;
+    --green:#40a88e;
+    --blue:#6591ee;
+    --purple:#9578e4;
+
+    --code:#080908;
+    --code-text:#eeeae2;
+
+    --shadow:0 15px 50px rgba(0,0,0,.25);
+    --shadow-lg:0 30px 90px rgba(0,0,0,.4);
+}
+
+*{
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+    scroll-padding-top:90px;
+}
+
+body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Inter",system-ui,sans-serif;
+    line-height:1.65;
+    overflow-x:hidden;
+}
+
+body.modal-open{
+    overflow:hidden;
+}
+
+a{
+    color:inherit;
+}
+
+button{
+    font-family:inherit;
+}
+
+/* =========================
+   PROGRESS BAR
+========================= */
+
+.progress{
+    position:fixed;
+    top:0;
+    left:0;
+    width:0%;
+    height:3px;
+    background:linear-gradient(
+        90deg,
+        var(--accent),
+        #ef8c50,
+        var(--green)
+    );
+    z-index:9999;
+}
+
+/* =========================
+   BACKGROUND
+========================= */
+
+.bg-orb{
+    position:fixed;
+    border-radius:50%;
+    filter:blur(90px);
+    opacity:.16;
+    pointer-events:none;
+    z-index:-1;
+}
+
+.orb-1{
+    width:280px;
+    height:280px;
+    background:var(--accent);
+    top:10%;
+    left:-120px;
+    animation:floatOrb 14s ease-in-out infinite;
+}
+
+.orb-2{
+    width:320px;
+    height:320px;
+    background:var(--green);
+    right:-160px;
+    top:50%;
+    animation:floatOrb 18s ease-in-out infinite reverse;
+}
+
+@keyframes floatOrb{
+    0%,100%{
+        transform:translate(0,0);
+    }
+
+    50%{
+        transform:translate(40px,-50px);
+    }
+}
+
+/* =========================
+   HERO
+========================= */
+
+.hero{
+    position:relative;
+    overflow:hidden;
+    min-height:620px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color:white;
+
+    background:
+        radial-gradient(
+            circle at 20% 20%,
+            rgba(255,255,255,.16),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 80% 70%,
+            rgba(80,200,170,.18),
+            transparent 25%
+        ),
+        linear-gradient(
+            135deg,
+            #a9431c 0%,
+            #d45f2a 42%,
+            #963d1b 100%
+        );
+}
+
+.hero::before{
+    content:"";
+    position:absolute;
+    inset:0;
+
+    background-image:
+        linear-gradient(
+            rgba(255,255,255,.055) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.055) 1px,
+            transparent 1px
+        );
+
+    background-size:45px 45px;
+
+    mask-image:linear-gradient(
+        to bottom,
+        black,
+        transparent
+    );
+
+    animation:gridMove 18s linear infinite;
+}
+
+@keyframes gridMove{
+    from{
+        background-position:0 0;
+    }
+
+    to{
+        background-position:45px 45px;
+    }
+}
+
+.hero-inner{
+    position:relative;
+    z-index:2;
+    width:min(1000px,92%);
+    padding:90px 20px 100px;
+}
+
+.eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:9px;
+
+    padding:7px 13px;
+
+    border:1px solid rgba(255,255,255,.22);
+    background:rgba(255,255,255,.09);
+    backdrop-filter:blur(10px);
+
+    border-radius:100px;
+
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;
+
+    animation:fadeUp .8s ease both;
+}
+
+.live-dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#8ff0c6;
+    box-shadow:0 0 14px #8ff0c6;
+    animation:pulse 1.7s infinite;
+}
+
+@keyframes pulse{
+    0%,100%{
+        transform:scale(1);
+        opacity:1;
+    }
+
+    50%{
+        transform:scale(.65);
+        opacity:.5;
+    }
+}
+
+.hero h1{
+    margin:24px auto 18px;
+
+    max-width:900px;
+
+    font-size:clamp(
+        38px,
+        7vw,
+        76px
+    );
+
+    line-height:1.02;
+    letter-spacing:-.055em;
+
+    font-weight:900;
+
+    animation:fadeUp .8s .1s ease both;
+}
+
+.hero h1 span{
+    background:linear-gradient(
+        90deg,
+        #fff,
+        #ffd9c5,
+        #c9f5e9
+    );
+
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+}
+
+.hero-description{
+    max-width:650px;
+    margin:auto;
+
+    color:rgba(255,255,255,.85);
+
+    font-size:clamp(
+        15px,
+        2vw,
+        18px
+    );
+
+    animation:fadeUp .8s .2s ease both;
+}
+
+.hero-buttons{
+    display:flex;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:12px;
+
+    margin-top:30px;
+
+    animation:fadeUp .8s .3s ease both;
+}
+
+.hero-btn{
+    border:0;
+    text-decoration:none;
+    cursor:pointer;
+
+    padding:12px 18px;
+
+    border-radius:12px;
+
+    font-size:14px;
+    font-weight:700;
+
+    transition:.25s;
+}
+
+.hero-btn.primary{
+    background:white;
+    color:#a9441d;
+}
+
+.hero-btn.secondary{
+    color:white;
+    background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.25);
+    backdrop-filter:blur(10px);
+}
+
+.hero-btn:hover{
+    transform:translateY(-3px);
+}
+
+/* =========================
+   HERO FLOW
+========================= */
+
+.flow{
+    margin:50px auto 0;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+
+    animation:fadeUp .8s .4s ease both;
+}
+
+.node{
+    position:relative;
+
+    min-width:125px;
+
+    padding:13px 16px;
+
+    border-radius:15px;
+
+    border:1px solid rgba(255,255,255,.2);
+    background:rgba(255,255,255,.09);
+
+    backdrop-filter:blur(12px);
+
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;
+}
+
+.node strong{
+    display:block;
+    font-family:Inter,sans-serif;
+    font-size:14px;
+    margin-bottom:2px;
+}
+
+.node small{
+    opacity:.7;
+}
+
+.flow-arrow{
+    opacity:.6;
+    font-size:20px;
+}
+
+.flow-line{
+    position:absolute;
+    height:1px;
+    background:linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,.8),
+        transparent
+    );
+
+    width:100%;
+    left:0;
+    bottom:-12px;
+
+    animation:scan 2.5s linear infinite;
+}
+
+@keyframes scan{
+    from{
+        transform:translateX(-100%);
+    }
+
+    to{
+        transform:translateX(100%);
+    }
+}
+
+/* =========================
+   MAIN
+========================= */
+
+.wrap{
+    width:min(900px,calc(100% - 32px));
+    margin:auto;
+    padding-bottom:100px;
+}
+
+/* =========================
+   STICKY NAV
+========================= */
+
+.navbar{
+    position:sticky;
+    top:12px;
+
+    z-index:100;
+
+    margin:-35px auto 40px;
+
+    width:min(850px,calc(100% - 20px));
+
+    background:color-mix(
+        in srgb,
+        var(--surface) 88%,
+        transparent
+    );
+
+    backdrop-filter:blur(20px);
+
+    border:1px solid var(--border);
+
+    border-radius:18px;
+
+    box-shadow:var(--shadow);
+
+    padding:10px;
+
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:8px;
+
+    font-weight:800;
+    font-size:14px;
+
+    padding:8px 12px;
+}
+
+.brand-mark{
+    width:28px;
+    height:28px;
+
+    border-radius:8px;
+
+    background:linear-gradient(
+        135deg,
+        var(--accent),
+        var(--accent-dark)
+    );
+
+    color:white;
+
+    display:grid;
+    place-items:center;
+
+    font-size:12px;
+}
+
+.nav-links{
+    display:flex;
+    gap:4px;
+
+    overflow:auto;
+
+    flex:1;
+    scrollbar-width:none;
+}
+
+.nav-links::-webkit-scrollbar{
+    display:none;
+}
+
+.nav-links a{
+    white-space:nowrap;
+
+    text-decoration:none;
+
+    padding:8px 10px;
+
+    border-radius:9px;
+
+    font-size:12px;
+    color:var(--muted);
+
+    transition:.2s;
+}
+
+.nav-links a:hover,
+.nav-links a.active{
+    background:var(--surface-2);
+    color:var(--text);
+}
+
+.theme-btn{
+    width:36px;
+    height:36px;
+
+    flex-shrink:0;
+
+    border:1px solid var(--border);
+
+    background:var(--surface-2);
+    color:var(--text);
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+}
+
+/* =========================
+   CONTENT
+========================= */
+
+section{
+    margin:75px 0;
+}
+
+.section-heading{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    margin-bottom:22px;
+}
+
+.number{
+    flex-shrink:0;
+
+    width:38px;
+    height:38px;
+
+    border-radius:11px;
+
+    display:grid;
+    place-items:center;
+
+    color:white;
+
+    background:linear-gradient(
+        135deg,
+        var(--accent),
+        var(--accent-dark)
+    );
+
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;
+    font-weight:700;
+
+    box-shadow:0 8px 20px rgba(201,98,47,.22);
+}
+
+.section-heading h2{
+    margin:0;
+
+    font-size:clamp(
+        22px,
+        4vw,
+        30px
+    );
+
+    letter-spacing:-.035em;
+    line-height:1.2;
+}
+
+.section-heading p{
+    margin:5px 0 0;
+    color:var(--muted);
+    font-size:14px;
+}
+
+h3{
+    color:var(--green);
+    margin:25px 0 9px;
+    font-size:16px;
+}
+
+p{
+    margin:11px 0;
+}
+
+.card{
+    background:var(--surface);
+
+    border:1px solid var(--border);
+
+    border-radius:var(--radius);
+
+    padding:22px;
+
+    margin:15px 0;
+
+    box-shadow:var(--shadow);
+
+    transition:
+        transform .3s,
+        box-shadow .3s,
+        border-color .3s;
+}
+
+.card:hover{
+    transform:translateY(-4px);
+    box-shadow:var(--shadow-lg);
+    border-color:color-mix(
+        in srgb,
+        var(--accent) 35%,
+        var(--border)
+    );
+}
+
+.grid2{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:15px;
+}
+
+.icon-card{
+    position:relative;
+    overflow:hidden;
+}
+
+.icon-card::after{
+    content:"";
+
+    position:absolute;
+
+    width:100px;
+    height:100px;
+
+    right:-35px;
+    bottom:-35px;
+
+    border-radius:50%;
+
+    background:var(--accent);
+    opacity:.08;
+}
+
+.icon{
+    font-size:26px;
+    margin-bottom:8px;
+}
+
+/* =========================
+   CODE
+========================= */
+
+.code-wrapper{
+    position:relative;
+    margin:18px 0;
+}
+
+pre{
+    margin:0;
+
+    padding:20px;
+
+    overflow:auto;
+
+    background:var(--code);
+    color:var(--code-text);
+
+    border-radius:15px;
+
+    border:1px solid rgba(255,255,255,.07);
+
+    font-family:"JetBrains Mono",monospace;
+
+    font-size:13px;
+    line-height:1.7;
+
+    box-shadow:var(--shadow-lg);
+}
+
+pre code{
+    background:none;
+    padding:0;
+}
+
+.copy{
+    position:absolute;
+
+    right:10px;
+    top:10px;
+
+    border:1px solid rgba(255,255,255,.13);
+
+    background:rgba(255,255,255,.08);
+
+    color:white;
+
+    padding:7px 10px;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    font-size:11px;
+
+    backdrop-filter:blur(10px);
+
+    transition:.2s;
+}
+
+.copy:hover{
+    background:rgba(255,255,255,.16);
+}
+
+code{
+    font-family:"JetBrains Mono",monospace;
+
+    background:var(--surface-2);
+
+    border:1px solid var(--border);
+
+    padding:2px 6px;
+
+    border-radius:6px;
+
+    font-size:.9em;
+}
+
+/* =========================
+   TERMINAL / PATH
+========================= */
+
+.path{
+    padding:18px;
+
+    border-radius:14px;
+
+    background:var(--code);
+    color:var(--code-text);
+
+    font-family:"JetBrains Mono",monospace;
+    font-size:13px;
+
+    overflow:auto;
+
+    box-shadow:var(--shadow);
+}
+
+.terminal{
+    background:#0b0c0b;
+    color:#d8f7e9;
+
+    padding:18px;
+
+    border-radius:14px;
+
+    font-family:"JetBrains Mono",monospace;
+
+    font-size:13px;
+
+    overflow:auto;
+
+    border:1px solid #242824;
+}
+
+.prompt{
+    color:#77e1b5;
+}
+
+/* =========================
+   ALERTS
+========================= */
+
+.notice{
+    display:flex;
+    gap:13px;
+
+    padding:16px 18px;
+
+    border-radius:14px;
+
+    margin:18px 0;
+
+    border:1px solid var(--border);
+
+    background:var(--surface);
+
+    box-shadow:var(--shadow);
+}
+
+.notice-icon{
+    flex-shrink:0;
+
+    width:32px;
+    height:32px;
+
+    display:grid;
+    place-items:center;
+
+    border-radius:9px;
+
+    background:rgba(212,95,42,.12);
+}
+
+.notice strong{
+    display:block;
+    margin-bottom:2px;
+}
+
+.notice p{
+    margin:0;
+    color:var(--muted);
+    font-size:13px;
+}
+
+.notice.success{
+    border-color:rgba(35,129,109,.25);
+}
+
+.notice.success .notice-icon{
+    background:rgba(35,129,109,.13);
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.table-wrap{
+    overflow:auto;
+
+    border-radius:14px;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+
+    background:var(--surface);
+
+    font-size:13px;
+
+    min-width:580px;
+}
+
+th,
+td{
+    padding:13px;
+
+    text-align:left;
+
+    border-bottom:1px solid var(--border);
+}
+
+th{
+    background:var(--surface-2);
+    font-weight:700;
+}
+
+tr:last-child td{
+    border-bottom:0;
+}
+
+/* =========================
+   DIAGRAM
+========================= */
+
+.architecture{
+    display:grid;
+
+    grid-template-columns:
+        repeat(5,1fr);
+
+    gap:8px;
+
+    margin:25px 0;
+}
+
+.arch-node{
+    padding:16px 10px;
+
+    text-align:center;
+
+    border:1px solid var(--border);
+
+    background:var(--surface);
+
+    border-radius:14px;
+
+    box-shadow:var(--shadow);
+
+    font-size:11px;
+
+    position:relative;
+
+    transition:.3s;
+}
+
+.arch-node:hover{
+    transform:translateY(-5px);
+    border-color:var(--accent);
+}
+
+.arch-node .emoji{
+    font-size:24px;
+    display:block;
+    margin-bottom:7px;
+}
+
+.arch-arrow{
+    position:absolute;
+    right:-13px;
+    top:50%;
+    transform:translateY(-50%);
+
+    z-index:2;
+
+    color:var(--accent);
+}
+
+/* =========================
+   CHECKLIST
+========================= */
+
+.check-progress{
+    margin-bottom:18px;
+}
+
+.progress-label{
+    display:flex;
+    justify-content:space-between;
+
+    font-size:12px;
+    color:var(--muted);
+
+    margin-bottom:7px;
+}
+
+.progress-track{
+    height:8px;
+
+    border-radius:100px;
+
+    background:var(--surface-2);
+
+    overflow:hidden;
+}
+
+.progress-fill{
+    width:0%;
+    height:100%;
+
+    border-radius:inherit;
+
+    background:linear-gradient(
+        90deg,
+        var(--accent),
+        var(--green)
+    );
+
+    transition:width .35s ease;
+}
+
+.checklist{
+    list-style:none;
+    padding:0;
+    margin:0;
+}
+
+.checklist li{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+
+    padding:12px 0;
+
+    border-bottom:1px solid var(--border);
+
+    font-size:14px;
+}
+
+.checklist li:last-child{
+    border-bottom:0;
+}
+
+.checklist input{
+    width:18px;
+    height:18px;
+
+    accent-color:var(--accent);
+
+    margin-top:3px;
+
+    flex-shrink:0;
+
+    cursor:pointer;
+}
+
+.checklist li.done span{
+    text-decoration:line-through;
+    color:var(--muted);
+}
+
+/* =========================
+   BADGES
+========================= */
+
+.badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+    margin-top:10px;
+}
+
+.badge{
+    display:inline-flex;
+
+    padding:5px 9px;
+
+    border-radius:100px;
+
+    border:1px solid var(--border);
+
+    background:var(--surface-2);
+
+    font-family:"JetBrains Mono",monospace;
+
+    font-size:11px;
+
+    color:var(--muted);
+}
+
+/* =========================
+   REVEAL
+========================= */
+
+.reveal{
+    opacity:0;
+    transform:translateY(28px);
+
+    transition:
+        opacity .7s ease,
+        transform .7s ease;
+}
+
+.reveal.visible{
+    opacity:1;
+    transform:translateY(0);
+}
+
+/* =========================
+   WELCOME MODAL
+========================= */
+
+.overlay{
+    position:fixed;
+    inset:0;
+
+    z-index:10000;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    padding:20px;
+
+    background:rgba(10,10,8,.7);
+
+    backdrop-filter:blur(12px);
+
+    opacity:0;
+    visibility:hidden;
+
+    transition:.35s;
+}
+
+.overlay.show{
+    opacity:1;
+    visibility:visible;
+}
+
+.modal{
+    width:min(440px,100%);
+
+    padding:35px 28px 28px;
+
+    text-align:center;
+
+    background:var(--surface);
+
+    color:var(--text);
+
+    border:1px solid var(--border);
+
+    border-radius:24px;
+
+    box-shadow:0 40px 100px rgba(0,0,0,.35);
+
+    transform:translateY(25px) scale(.96);
+
+    transition:.35s;
+}
+
+.overlay.show .modal{
+    transform:translateY(0) scale(1);
+}
+
+.modal-icon{
+    width:65px;
+    height:65px;
+
+    display:grid;
+    place-items:center;
+
+    margin:auto auto 16px;
+
+    border-radius:20px;
+
+    font-size:30px;
+
+    background:linear-gradient(
+        135deg,
+        var(--accent),
+        var(--accent-dark)
+    );
+
+    box-shadow:
+        0 12px 30px
+        rgba(212,95,42,.3);
+
+    animation:modalFloat 3s ease-in-out infinite;
+}
+
+@keyframes modalFloat{
+    0%,100%{
+        transform:translateY(0);
+    }
+
+    50%{
+        transform:translateY(-6px);
+    }
+}
+
+.modal h2{
+    margin:0 0 8px;
+    font-size:22px;
+}
+
+.modal p{
+    color:var(--muted);
+    font-size:14px;
+    margin:0 auto 22px;
+}
+
+.modal button{
+    border:0;
+
+    background:var(--accent);
+    color:white;
+
+    padding:12px 22px;
+
+    border-radius:11px;
+
+    font-weight:700;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.modal button:hover{
+    transform:translateY(-2px);
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+footer{
+    text-align:center;
+
+    padding:60px 20px 100px;
+
+    color:var(--muted);
+
+    font-size:12px;
+}
+
+.footer-line{
+    width:70px;
+    height:2px;
+
+    background:var(--accent);
+
+    margin:0 auto 20px;
+
+    border-radius:100px;
+}
+
+/* =========================
+   BACK TO TOP
+========================= */
+
+.top{
+    position:fixed;
+
+    right:22px;
+    bottom:22px;
+
+    width:44px;
+    height:44px;
+
+    display:grid;
+    place-items:center;
+
+    border-radius:14px;
+
+    background:var(--accent);
+    color:white;
+
+    text-decoration:none;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.2);
+
+    opacity:0;
+    transform:translateY(15px);
+
+    pointer-events:none;
+
+    transition:.25s;
+
+    z-index:90;
+}
+
+.top.show{
+    opacity:1;
+    transform:translateY(0);
+    pointer-events:auto;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+.mobile-nav{
+    display:none;
+}
+
+@media(max-width:700px){
+
+    .hero{
+        min-height:690px;
+    }
+
+    .hero-inner{
+        padding:80px 12px 100px;
+    }
+
+    .hero h1{
+        font-size:clamp(
+            40px,
+            13vw,
+            60px
+        );
+    }
+
+    .hero-description{
+        font-size:14px;
+    }
+
+    .flow{
+        flex-direction:column;
+        gap:7px;
+    }
+
+    .flow-arrow{
+        transform:rotate(90deg);
+    }
+
+    .node{
+        width:190px;
+    }
+
+    .navbar{
+        top:8px;
+        margin:-30px auto 25px;
+        padding:8px;
+    }
+
+    .brand{
+        display:none;
+    }
+
+    .nav-links a{
+        font-size:11px;
+        padding:7px 8px;
+    }
+
+    .grid2{
+        grid-template-columns:1fr;
+    }
+
+    .architecture{
+        grid-template-columns:1fr;
+        gap:12px;
+    }
+
+    .arch-arrow{
+        display:none;
+    }
+
+    section{
+        margin:55px 0;
+    }
+
+    .wrap{
+        width:min(100% - 22px,900px);
+    }
+
+    .card{
+        padding:18px;
+    }
+
+    pre{
+        font-size:11.5px;
+        padding:17px 13px;
+    }
+
+    .top{
+        bottom:80px;
+        right:16px;
+    }
+
+    .mobile-nav{
+        position:fixed;
+
+        left:10px;
+        right:10px;
+        bottom:10px;
+
+        z-index:500;
+
+        display:flex;
+
+        padding:8px;
+
+        background:color-mix(
+            in srgb,
+            var(--surface) 90%,
+            transparent
+        );
+
+        backdrop-filter:blur(20px);
+
+        border:1px solid var(--border);
+
+        border-radius:17px;
+
+        box-shadow:var(--shadow-lg);
+    }
+
+    .mobile-nav a{
+        flex:1;
+
+        text-align:center;
+
+        text-decoration:none;
+
+        padding:7px 4px;
+
+        font-size:10px;
+
+        color:var(--muted);
+    }
+
+    .mobile-nav a span{
+        display:block;
+        font-size:16px;
+        margin-bottom:2px;
+    }
+
+    footer{
+        padding-bottom:130px;
+    }
+}
+
+@media(prefers-reduced-motion:reduce){
+
+    *,
+    *::before,
+    *::after{
+        animation-duration:.01ms !important;
+        animation-iteration-count:1 !important;
+        scroll-behavior:auto !important;
+        transition-duration:.01ms !important;
+    }
+
+    .reveal{
+        opacity:1;
+        transform:none;
+    }
+}
+
 </style>
 </head>
+
 <body>
 
-<div id="welcomeOverlay">
-  <div id="welcomeModal">
-    <div class="icon">🌡️</div>
-    <h3>Thanks for visiting!</h3>
-    <p>This guide was made by <strong>Students of CSE B, Year 2024 – 2027</strong> — hope it helps you get your DHT11 talking to AWS IoT Core. Happy building! 🚀</p>
-    <button id="welcomeClose">Let's start →</button>
-  </div>
+<div class="progress" id="progress"></div>
+
+<div class="bg-orb orb-1"></div>
+<div class="bg-orb orb-2"></div>
+
+
+<!-- =========================
+     WELCOME
+========================= -->
+
+<div class="overlay" id="welcomeOverlay">
+
+    <div class="modal">
+
+        <div class="modal-icon">
+            🌡️
+        </div>
+
+        <h2>Welcome to the build</h2>
+
+        <p>
+            A beginner-friendly journey from a DHT11 sensor
+            all the way to secure AWS IoT Core MQTT communication.
+        </p>
+
+        <p>
+            <strong>
+                Students of CSE B · Year 2024–2027
+            </strong>
+        </p>
+
+        <button id="welcomeClose">
+            Let's build →
+        </button>
+
+    </div>
+
 </div>
 
 
+<!-- =========================
+     HERO
+========================= -->
+
 <header class="hero">
-  <h1>DHT11 → ESP8266 → AWS IoT Core</h1>
-  <p>A complete zero-to-working beginner walkthrough — sensor, secure MQTT/TLS, and live data in the AWS console.</p>
-  <div class="flowbar">
-    <span>DHT11</span><span class="arrow">→</span>
-    <span>ESP8266 NodeMCU</span><span class="arrow">→</span>
-    <span>AWS IoT Core</span><span class="arrow">→</span>
-    <span>MQTT Test Client</span>
-  </div>
+
+    <div class="hero-inner">
+
+        <div class="eyebrow">
+            <span class="live-dot"></span>
+            IoT BEGINNER BUILD GUIDE
+        </div>
+
+        <h1>
+            DHT11
+            <span>→</span>
+            ESP8266
+            <span>→</span>
+            AWS IoT
+        </h1>
+
+        <p class="hero-description">
+            Build your first secure IoT pipeline from scratch.
+            Read temperature and humidity, connect your ESP8266
+            using MQTT over TLS, and watch your sensor data arrive
+            live inside AWS IoT Core.
+        </p>
+
+        <div class="hero-buttons">
+
+            <a class="hero-btn primary" href="#a">
+                Start Building →
+            </a>
+
+            <a class="hero-btn secondary" href="#ab">
+                See Final Result
+            </a>
+
+        </div>
+
+
+        <div class="flow">
+
+            <div class="node">
+
+                <strong>🌡️ DHT11</strong>
+                <small>Sensor</small>
+
+                <div class="flow-line"></div>
+
+            </div>
+
+            <div class="flow-arrow">→</div>
+
+            <div class="node">
+
+                <strong>📡 ESP8266</strong>
+                <small>Device</small>
+
+                <div class="flow-line"></div>
+
+            </div>
+
+            <div class="flow-arrow">→</div>
+
+            <div class="node">
+
+                <strong>☁️ AWS IoT</strong>
+                <small>Cloud</small>
+
+                <div class="flow-line"></div>
+
+            </div>
+
+            <div class="flow-arrow">→</div>
+
+            <div class="node">
+
+                <strong>📊 MQTT</strong>
+                <small>Live data</small>
+
+                <div class="flow-line"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </header>
 
-<div class="wrap">
 
-<nav class="toc">
-  <h2>Contents</h2>
-  <ol>
-    <li><a href="#a">A. What you need</a></li>
-    <li><a href="#b">B. Wire the DHT11</a></li>
-    <li><a href="#c">C. Install Arduino IDE</a></li>
-    <li><a href="#d">D. Install ESP8266 support</a></li>
-    <li><a href="#e">E. Select your board</a></li>
-    <li><a href="#f">F. Install libraries</a></li>
-    <li><a href="#g">G. Test the DHT11 sensor</a></li>
-    <li><a href="#i">I–N. Set up AWS IoT (Thing, cert, policy)</a></li>
-    <li><a href="#o">O–P. Download &amp; organize certificates</a></li>
-    <li><a href="#q">Q–V. Install &amp; test LittleFS uploader</a></li>
-    <li><a href="#w">W. Get your AWS endpoint</a></li>
-    <li><a href="#x">X–Z. The final sketch &amp; upload order</a></li>
-    <li><a href="#ab">AB. See data arrive in AWS</a></li>
-    <li><a href="#ad">AD. Troubleshooting</a></li>
-    <li><a href="#af">AF. Full checklist</a></li>
-  </ol>
+<main class="wrap">
+
+
+<!-- =========================
+     NAV
+========================= -->
+
+<nav class="navbar">
+
+    <div class="brand">
+
+        <div class="brand-mark">
+            I
+        </div>
+
+        IoT Guide
+
+    </div>
+
+
+    <div class="nav-links">
+
+        <a href="#a">Start</a>
+        <a href="#b">Wiring</a>
+        <a href="#c">IDE</a>
+        <a href="#i">AWS</a>
+        <a href="#q">LittleFS</a>
+        <a href="#x">Code</a>
+        <a href="#ab">Result</a>
+        <a href="#ad">Fix</a>
+
+    </div>
+
+
+    <button
+        class="theme-btn"
+        id="themeToggle"
+        aria-label="Toggle theme"
+    >
+        🌙
+    </button>
+
 </nav>
 
-<section id="a">
-  <h2 class="part"><span class="num">A</span>What you need</h2>
-  <div class="grid2">
-    <div class="card">
-      <h3>Hardware</h3>
-      <ul><li>ESP8266 NodeMCU</li><li>DHT11 sensor</li><li>USB cable</li><li>Computer + Wi‑Fi</li></ul>
+
+<!-- =========================
+     A
+========================= -->
+
+<section id="a" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">A</div>
+
+        <div>
+            <h2>What you need</h2>
+
+            <p>
+                Gather everything before starting.
+            </p>
+        </div>
+
     </div>
-    <div class="card">
-      <h3>Accounts &amp; software</h3>
-      <ul><li>AWS account (IoT Core)</li><li>Arduino IDE 2.2.1+</li><li>ESP8266 board package</li><li>DHT, PubSubClient, LittleFS uploader</li></ul>
+
+
+    <div class="grid2">
+
+        <div class="card icon-card">
+
+            <div class="icon">🔌</div>
+
+            <h3>Hardware</h3>
+
+            <ul>
+                <li>ESP8266 NodeMCU</li>
+                <li>DHT11 sensor</li>
+                <li>USB cable</li>
+                <li>Computer + Wi-Fi</li>
+            </ul>
+
+        </div>
+
+
+        <div class="card icon-card">
+
+            <div class="icon">💻</div>
+
+            <h3>Software</h3>
+
+            <ul>
+                <li>AWS account</li>
+                <li>Arduino IDE 2.2.1+</li>
+                <li>ESP8266 board package</li>
+                <li>DHT + MQTT libraries</li>
+                <li>LittleFS uploader</li>
+            </ul>
+
+        </div>
+
     </div>
-  </div>
+
 </section>
 
-<section id="b">
-  <h2 class="part"><span class="num">B</span>Wire the DHT11 to the ESP8266</h2>
-  <p>If you have the common 3‑pin DHT11 module:</p>
-  <div class="wire">DHT11 VCC   ──────  NodeMCU 3V3
-DHT11 DATA  ──────  NodeMCU D4
-DHT11 GND   ──────  NodeMCU GND</div>
-  <p>Bare 4‑pin DHT11 (no module board)? Add a <strong>pull‑up resistor</strong> (≈10kΩ) between DATA and VCC.</p>
+
+<!-- =========================
+     B
+========================= -->
+
+<section id="b" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">B</div>
+
+        <div>
+            <h2>Wire the DHT11</h2>
+
+            <p>
+                Connect the sensor before writing any AWS code.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>3-pin DHT11 module</h3>
+
+<pre><code>DHT11 VCC   ─────────  NodeMCU 3V3
+DHT11 DATA  ─────────  NodeMCU D4
+DHT11 GND   ─────────  NodeMCU GND</code></pre>
+
+    </div>
+
+
+    <div class="notice">
+
+        <div class="notice-icon">
+            ⚠️
+        </div>
+
+        <div>
+
+            <strong>Bare 4-pin DHT11?</strong>
+
+            <p>
+                Use approximately a 10kΩ pull-up resistor
+                between DATA and VCC.
+            </p>
+
+        </div>
+
+    </div>
+
 </section>
 
-<section id="c">
-  <h2 class="part"><span class="num">C</span>Install Arduino IDE</h2>
-  <p>Download and install <strong>Arduino IDE</strong> from the official site, then open it. Already installed? Skip ahead.</p>
+
+<!-- =========================
+     C
+========================= -->
+
+<section id="c" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">C</div>
+
+        <div>
+            <h2>Install Arduino IDE</h2>
+
+            <p>
+                Your development environment starts here.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="badges">
+            <span class="badge">Windows</span>
+            <span class="badge">Arduino IDE 2.x</span>
+            <span class="badge">ESP8266</span>
+        </div>
+
+        <p>
+            Download and install Arduino IDE, then open it.
+            If Arduino IDE is already installed, continue to
+            the ESP8266 board setup.
+        </p>
+
+    </div>
+
 </section>
 
-<section id="d">
-  <h2 class="part"><span class="num">D</span>Install ESP8266 board support</h2>
-  <h3>D1 — Add the boards URL</h3>
-  <div class="menu"><b>File</b> → <b>Preferences</b> → paste into "Additional boards manager URLs":</div>
-  <pre><code>https://arduino.esp8266.com/stable/package_esp8266com_index.json</code></pre>
-  <h3>D2 — Install the package</h3>
-  <div class="menu"><b>Tools</b> → <b>Board</b> → <b>Boards Manager</b> → search <code>esp8266</code> → install <b>esp8266 by ESP8266 Community</b></div>
+
+<!-- =========================
+     D
+========================= -->
+
+<section id="d" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">D</div>
+
+        <div>
+            <h2>Install ESP8266 support</h2>
+
+            <p>
+                Add the board package to Arduino IDE.
+            </p>
+        </div>
+
+    </div>
+
+
+    <h3>D1 — Add the board URL</h3>
+
+    <div class="card">
+
+        <p>
+            Open:
+        </p>
+
+        <div class="path">
+File → Preferences → Additional boards manager URLs
+        </div>
+
+<pre><code>https://arduino.esp8266.com/stable/package_esp8266com_index.json</code></pre>
+
+    </div>
+
+
+    <h3>D2 — Install ESP8266</h3>
+
+    <div class="card">
+
+        <div class="path">
+Tools → Board → Boards Manager
+→ Search: esp8266
+→ Install: esp8266 by ESP8266 Community
+        </div>
+
+    </div>
+
 </section>
 
-<section id="e">
-  <h2 class="part"><span class="num">E</span>Select your board &amp; port</h2>
-  <div class="menu"><b>Tools</b> → <b>Board</b> → <b>ESP8266 Boards</b> → <b>NodeMCU 1.0 (ESP‑12E Module)</b></div>
-  <div class="menu"><b>Tools</b> → <b>Port</b> → select your <code>COMx</code></div>
+
+<!-- =========================
+     E
+========================= -->
+
+<section id="e" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">E</div>
+
+        <div>
+            <h2>Select board & port</h2>
+
+            <p>
+                Tell Arduino IDE which ESP8266 you're using.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="grid2">
+
+        <div class="card">
+
+            <h3>Board</h3>
+
+            <div class="path">
+Tools → Board
+→ ESP8266 Boards
+→ NodeMCU 1.0 (ESP-12E Module)
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>Port</h3>
+
+            <div class="path">
+Tools → Port
+→ COMx
+            </div>
+
+        </div>
+
+    </div>
+
 </section>
 
-<section id="f">
-  <h2 class="part"><span class="num">F</span>Install libraries</h2>
-  <div class="menu"><b>Sketch</b> → <b>Include Library</b> → <b>Manage Libraries</b> — install each:</div>
-  <ul>
-    <li><strong>DHT sensor library</strong> by Adafruit</li>
-    <li><strong>Adafruit Unified Sensor</strong> by Adafruit</li>
-    <li><strong>PubSubClient</strong> by Nick O'Leary</li>
-  </ul>
+
+<!-- =========================
+     F
+========================= -->
+
+<section id="f" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">F</div>
+
+        <div>
+            <h2>Install libraries</h2>
+
+            <p>
+                These libraries handle the sensor and MQTT connection.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="path">
+Sketch → Include Library → Manage Libraries
+        </div>
+
+        <div class="badges">
+
+            <span class="badge">
+                DHT sensor library — Adafruit
+            </span>
+
+            <span class="badge">
+                Adafruit Unified Sensor
+            </span>
+
+            <span class="badge">
+                PubSubClient — Nick O'Leary
+            </span>
+
+        </div>
+
+    </div>
+
 </section>
 
-<section id="g">
-  <h2 class="part"><span class="num">G</span>Test the DHT11 before touching AWS</h2>
-  <p>Create a new sketch, save it as <code>AWS_DHT11</code>, paste this, and upload:</p>
+
+<!-- =========================
+     G
+========================= -->
+
+<section id="g" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">G</div>
+
+        <div>
+            <h2>Test the DHT11</h2>
+
+            <p>
+                Always verify the hardware before introducing AWS.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="notice success">
+
+        <div class="notice-icon">
+            ✓
+        </div>
+
+        <div>
+
+            <strong>Important debugging rule</strong>
+
+            <p>
+                If the sensor does not work locally,
+                AWS will not fix it. Test one layer at a time.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="code-wrapper">
+
+        <button class="copy">
+            Copy
+        </button>
+
 <pre><code>#include &lt;DHT.h&gt;
+
 #define DHTPIN D4
 #define DHTTYPE DHT11
+
 DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
+
   Serial.begin(115200);
+
   dht.begin();
+
   Serial.println("\nDHT11 Test");
+
 }
 
 void loop() {
+
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
+
   if (isnan(temperature) || isnan(humidity)) {
+
     Serial.println("DHT11 read failed!");
+
     delay(2000);
+
     return;
   }
-  Serial.printf("Temperature: %.1f C\n", temperature);
-  Serial.printf("Humidity: %.1f %%\n", humidity);
+
+  Serial.printf(
+    "Temperature: %.1f C\n",
+    temperature
+  );
+
+  Serial.printf(
+    "Humidity: %.1f %%\n",
+    humidity
+  );
+
   Serial.println("----------------");
+
   delay(2000);
 }</code></pre>
-  <p>Open <strong>Tools → Serial Monitor</strong> at <code>115200 baud</code>. If readings appear, your hardware works — move on.</p>
+
+    </div>
+
+
+    <div class="terminal">
+
+        <span class="prompt">$</span>
+        Tools → Serial Monitor → 115200 baud
+
+        <br><br>
+
+        Temperature: 28.0 C
+        <br>
+        Humidity: 63.0 %
+        <br>
+        ----------------
+        <br>
+        Temperature: 28.1 C
+        <br>
+        Humidity: 62.0 %
+
+    </div>
+
 </section>
 
-<section id="i">
-  <h2 class="part"><span class="num">I–N</span>Set up AWS IoT Core</h2>
 
-  <h3>I. Open IoT Core</h3>
-  <p>In the AWS Console, search <code>IoT Core</code> and open it. Confirm your region — e.g. <code>Asia Pacific (Mumbai) — ap-south-1</code>.</p>
+<!-- =========================
+     AWS
+========================= -->
 
-  <h3>J. Create the Thing</h3>
-  <div class="menu"><b>Manage</b> → <b>All devices</b> → <b>Things</b> → <b>Create thing</b> → <b>Create a single thing</b></div>
-  <p>Name it <code>ESP8266-DHT11</code> (avoid personal info in the name — AWS recommends against PII here).</p>
+<section id="i" class="reveal">
 
-  <h3>K. Create the certificate</h3>
-  <p>Choose <strong>Auto-generate a new certificate</strong> → <b>Next</b>. This X.509 certificate is how AWS authenticates the device.</p>
+    <div class="section-heading">
 
-  <h3>L. Create an IoT policy</h3>
-  <div class="menu"><b>Security</b> → <b>Policies</b> → <b>Create policy</b> — name it <code>ESP8266-DHT11-Policy</code></div>
+        <div class="number">I–N</div>
+
+        <div>
+            <h2>Configure AWS IoT Core</h2>
+
+            <p>
+                Now connect your physical device to AWS securely.
+            </p>
+        </div>
+
+    </div>
+
+
+    <h3>I — Open AWS IoT Core</h3>
+
+    <div class="card">
+
+        <p>
+            Open the AWS Console and search for
+            <strong>IoT Core</strong>.
+        </p>
+
+        <p>
+            Confirm your AWS region.
+        </p>
+
+        <div class="badges">
+            <span class="badge">Asia Pacific — Mumbai</span>
+            <span class="badge">ap-south-1</span>
+        </div>
+
+    </div>
+
+
+    <h3>J — Create the Thing</h3>
+
+    <div class="card">
+
+        <div class="path">
+Manage → All devices → Things
+→ Create thing
+→ Create a single thing
+        </div>
+
+        <p>
+            Use:
+            <code>ESP8266-DHT11</code>
+        </p>
+
+    </div>
+
+
+    <h3>K — Create certificate</h3>
+
+    <div class="card">
+
+        <p>
+            Select:
+        </p>
+
+        <div class="path">
+Auto-generate a new certificate
+→ Next
+        </div>
+
+        <p>
+            The X.509 certificate authenticates your ESP8266
+            with AWS IoT Core.
+        </p>
+
+    </div>
+
+
+    <h3>L — Create the IoT policy</h3>
+
+    <div class="card">
+
+        <div class="path">
+Security → Policies → Create policy
+        </div>
+
+        <p>
+            Example policy for initial testing:
+        </p>
+
+    </div>
+
+
+    <div class="code-wrapper">
+
+        <button class="copy">
+            Copy
+        </button>
+
 <pre><code>{
   "Version": "2012-10-17",
   "Statement": [
-    { "Effect": "Allow", "Action": "iot:Connect",   "Resource": "*" },
-    { "Effect": "Allow", "Action": "iot:Publish",   "Resource": "*" },
-    { "Effect": "Allow", "Action": "iot:Subscribe", "Resource": "*" },
-    { "Effect": "Allow", "Action": "iot:Receive",   "Resource": "*" }
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": "*"
+    }
   ]
 }</code></pre>
-  <div class="warn"><strong>Note:</strong> This wildcard policy is fine for a first test. For a real device, scope <code>Resource</code> down to that device's specific topics and cert ARN.</div>
 
-  <h3>M. Attach the policy to the certificate</h3>
-  <p><b>Security → Certificates</b> → open your cert → <b>Actions → Attach policy</b> → select <code>ESP8266-DHT11-Policy</code> → <b>Attach</b>.</p>
+    </div>
 
-  <h3>N. Confirm the certificate is ACTIVE</h3>
-  <p>Open the certificate and check its status shows <span class="badge">ACTIVE</span>. If not, activate it — it must be active before the device can connect.</p>
+
+    <div class="notice">
+
+        <div class="notice-icon">
+            🔐
+        </div>
+
+        <div>
+
+            <strong>Security note</strong>
+
+            <p>
+                This wildcard policy is suitable for a first
+                test. For production, restrict resources to
+                the required device and MQTT topics.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <h3>M — Attach the policy</h3>
+
+    <div class="card">
+
+        <div class="path">
+Security → Certificates
+→ Open certificate
+→ Actions → Attach policy
+→ ESP8266-DHT11-Policy
+        </div>
+
+    </div>
+
+
+    <h3>N — Confirm ACTIVE status</h3>
+
+    <div class="notice success">
+
+        <div class="notice-icon">
+            ✓
+        </div>
+
+        <div>
+
+            <strong>Certificate status</strong>
+
+            <p>
+                Your certificate must show
+                <code>ACTIVE</code>.
+            </p>
+
+        </div>
+
+    </div>
+
 </section>
 
-<section id="o">
-  <h2 class="part"><span class="num">O–P</span>Download &amp; organize certificates</h2>
-  <p>On the certificate creation page, download all three files:</p>
-  <table>
-    <tr><th>File</th><th>Purpose</th></tr>
-    <tr><td>Device certificate (<code>xxxxx-certificate.pem.crt</code>)</td><td>Identifies your ESP8266 to AWS</td></tr>
-    <tr><td>Private key (<code>xxxxx-private.pem.key</code>)</td><td>Proves the device owns the certificate</td></tr>
-    <tr><td><code>AmazonRootCA1.pem</code></td><td>Lets the ESP8266 verify AWS's server</td></tr>
-  </table>
-  <div class="warn">
-    <strong>⚠️ The private key is a secret credential.</strong> Never share it, upload it to GitHub, screenshot it, or send it to anyone — including in a support request.
-  </div>
-  <p>Create a project folder and rename the files, ending with this structure:</p>
-  <div class="path">AWS_DHT11/
+
+<!-- =========================
+     O
+========================= -->
+
+<section id="o" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">O–P</div>
+
+        <div>
+            <h2>Download certificates</h2>
+
+            <p>
+                These files allow the ESP8266 to establish
+                secure TLS communication.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>File</th>
+                    <th>Purpose</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+                    <td>
+                        <code>device.crt</code>
+                    </td>
+
+                    <td>
+                        Identifies your ESP8266.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        <code>private.key</code>
+                    </td>
+
+                    <td>
+                        Proves the device owns its certificate.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        <code>AmazonRootCA1.pem</code>
+                    </td>
+
+                    <td>
+                        Helps verify AWS's server.
+                    </td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <div class="notice">
+
+        <div class="notice-icon">
+            🔒
+        </div>
+
+        <div>
+
+            <strong>Never expose your private key</strong>
+
+            <p>
+                Do not upload it to GitHub, screenshots,
+                public drives, or chats.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <h3>Project structure</h3>
+
+<pre><code>AWS_DHT11/
+│
 ├── AWS_DHT11.ino
+│
 └── data/
     ├── AmazonRootCA1.pem
     ├── device.crt
-    └── private.key</div>
+    └── private.key</code></pre>
+
 </section>
 
-<section id="q">
-  <h2 class="part"><span class="num">Q–V</span>Install &amp; test the LittleFS uploader</h2>
-  <p>LittleFS stores the certificate files <em>on the ESP8266's flash</em>, separate from your code — so secrets never live inside the sketch.</p>
 
-  <h3>Q. Check your Arduino IDE version</h3>
-  <div class="menu"><b>Help</b> → <b>About Arduino IDE</b> — needs <b>2.2.1</b> or newer</div>
+<!-- =========================
+     LITTLEFS
+========================= -->
 
-  <h3>R. Install the plugin (Windows)</h3>
-  <ol class="steps">
-    <li>Close Arduino IDE.</li>
-    <li>Download the latest <code>.vsix</code> from the official <a href="https://github.com/earlephilhower/arduino-littlefs-upload/releases">arduino-littlefs-upload releases</a> page.</li>
-    <li>Create the folder <code>C:\Users\YOUR_USERNAME\.arduinoIDE\plugins</code> if it doesn't exist.</li>
-    <li>Copy the <code>.vsix</code> file into that <code>plugins</code> folder.</li>
-    <li>Reopen Arduino IDE.</li>
-  </ol>
+<section id="q" class="reveal">
 
-  <h3>S. Verify the command is available</h3>
-  <p>Open your sketch, press <code>Ctrl+Shift+P</code>, type <code>Upload LittleFS</code> — you should see <strong>Upload LittleFS to Pico/ESP8266/ESP32</strong>.</p>
+    <div class="section-heading">
 
-  <h3>T. Before uploading</h3>
-  <p>Confirm board = NodeMCU 1.0 (ESP‑12E), port is selected, and <strong>close the Serial Monitor</strong> (the uploader needs the port free).</p>
+        <div class="number">Q–V</div>
 
-  <h3>U. Upload the certificates</h3>
-  <p>With the <code>data/</code> folder in place, run <code>Ctrl+Shift+P</code> → <b>Upload LittleFS to Pico/ESP8266/ESP32</b> and wait for success.</p>
+        <div>
+            <h2>LittleFS certificate storage</h2>
 
-  <h3>V. Confirm the files are on the device</h3>
-  <p>Temporarily upload this test sketch:</p>
+            <p>
+                Store certificates separately from your Arduino sketch.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Why LittleFS?</h3>
+
+        <p>
+            LittleFS stores files inside the ESP8266 flash filesystem.
+            Your certificate files can therefore be loaded at runtime
+            instead of embedding their contents directly into the sketch.
+        </p>
+
+    </div>
+
+
+    <h3>Q — Check Arduino IDE</h3>
+
+    <div class="path">
+Help → About Arduino IDE
+→ Arduino IDE 2.2.1 or newer
+    </div>
+
+
+    <h3>R — Install uploader</h3>
+
+    <div class="card">
+
+        <ol>
+            <li>Close Arduino IDE.</li>
+
+            <li>
+                Download the latest LittleFS uploader
+                <code>.vsix</code>.
+            </li>
+
+            <li>
+                Create:
+                <code>
+                    C:\Users\YOUR_USERNAME\.arduinoIDE\plugins\
+                </code>
+            </li>
+
+            <li>
+                Place the VSIX file inside that folder.
+            </li>
+
+            <li>
+                Reopen Arduino IDE.
+            </li>
+
+        </ol>
+
+    </div>
+
+
+    <h3>S — Verify uploader</h3>
+
+    <div class="terminal">
+
+        <span class="prompt">&gt;</span>
+        Ctrl + Shift + P
+
+        <br>
+
+        <span class="prompt">&gt;</span>
+        Upload LittleFS
+
+        <br><br>
+
+        Expected:
+
+        <br>
+
+        Upload LittleFS to Pico/ESP8266/ESP32
+
+    </div>
+
+
+    <h3>U — Upload certificates</h3>
+
+    <div class="card">
+
+        <p>
+            Ensure your project contains:
+        </p>
+
+<pre><code>data/
+├── AmazonRootCA1.pem
+├── device.crt
+└── private.key</code></pre>
+
+        <p>
+            Then:
+        </p>
+
+        <div class="path">
+Ctrl + Shift + P
+→ Upload LittleFS to Pico/ESP8266/ESP32
+        </div>
+
+    </div>
+
+
+    <h3>V — Verify LittleFS</h3>
+
+    <div class="code-wrapper">
+
+        <button class="copy">
+            Copy
+        </button>
+
 <pre><code>#include &lt;LittleFS.h&gt;
 
 void setup() {
+
   Serial.begin(115200);
+
   delay(1000);
-  Serial.println("\nLittleFS Test\n----------------");
-  if (!LittleFS.begin()) { Serial.println("LittleFS FAILED!"); return; }
-  Serial.println("LittleFS mounted successfully!");
+
+  Serial.println("\nLittleFS Test");
+
+  if (!LittleFS.begin()) {
+
+    Serial.println("LittleFS FAILED!");
+
+    return;
+  }
+
+  Serial.println(
+    "LittleFS mounted successfully!"
+  );
+
   File root = LittleFS.open("/");
+
   File file = root.openNextFile();
+
   while (file) {
-    Serial.printf("File: %s | Size: %d\n", file.name(), file.size());
+
+    Serial.printf(
+      "File: %s | Size: %d\n",
+      file.name(),
+      file.size()
+    );
+
     file = root.openNextFile();
   }
 }
+
 void loop() {}</code></pre>
-  <div class="ok">Expect to see all three files listed with nonzero sizes. If so, you're ready for AWS.</div>
+
+    </div>
+
 </section>
 
-<section id="w">
-  <h2 class="part"><span class="num">W</span>Get your AWS IoT endpoint</h2>
-  <div class="menu">AWS IoT Core → <b>Settings</b> → copy the <b>Device data endpoint</b></div>
-  <p>It looks like <code>xxxxxxxxxxxxxx-ats.iot.ap-south-1.amazonaws.com</code>. AWS recommends the <code>iot:Data-ATS</code> endpoint type for new connections.</p>
+
+<!-- =========================
+     W
+========================= -->
+
+<section id="w" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">W</div>
+
+        <div>
+            <h2>Get the AWS endpoint</h2>
+
+            <p>
+                This is the address your ESP8266 will connect to.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="path">
+AWS IoT Core → Settings
+→ Device data endpoint
+        </div>
+
+        <p>
+            It will look similar to:
+        </p>
+
+<pre><code>xxxxxxxxxxxxxx-ats.iot.ap-south-1.amazonaws.com</code></pre>
+
+    </div>
+
 </section>
 
-<section id="x">
-  <h2 class="part"><span class="num">X–Z</span>The final sketch &amp; upload order</h2>
-  <p>Replace the LittleFS test code with the full program below. Only edit the four values marked <code>YOUR_...</code> — leave the rest as-is.</p>
+
+<!-- =========================
+     X
+========================= -->
+
+<section id="x" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">X–Z</div>
+
+        <div>
+            <h2>The final ESP8266 sketch</h2>
+
+            <p>
+                Connect Wi-Fi, load certificates, establish TLS,
+                read the DHT11 and publish MQTT data.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="notice">
+
+        <div class="notice-icon">
+            ✏️
+        </div>
+
+        <div>
+
+            <strong>Only change your own values</strong>
+
+            <p>
+                Replace the Wi-Fi credentials and AWS endpoint.
+                Keep certificate filenames and topic consistent.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="code-wrapper">
+
+        <button class="copy">
+            Copy
+        </button>
 
 <pre><code>#include &lt;ESP8266WiFi.h&gt;
 #include &lt;LittleFS.h&gt;
@@ -362,190 +2622,1618 @@ void loop() {}</code></pre>
 #include &lt;DHT.h&gt;
 #include &lt;time.h&gt;
 
-// ---- WiFi & AWS settings ----
-const char* WIFI_SSID     = "YOUR_WIFI_NAME";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* AWS_ENDPOINT  = "YOUR-ENDPOINT-ats.iot.ap-south-1.amazonaws.com";
-const char* MQTT_TOPIC    = "home/esp8266/dht11";
+
+// ==============================
+// WiFi & AWS
+// ==============================
+
+const char* WIFI_SSID =
+    "YOUR_WIFI_NAME";
+
+const char* WIFI_PASSWORD =
+    "YOUR_WIFI_PASSWORD";
+
+const char* AWS_ENDPOINT =
+    "YOUR-ENDPOINT-ats.iot.ap-south-1.amazonaws.com";
+
+const char* MQTT_TOPIC =
+    "home/esp8266/dht11";
+
+
+// ==============================
+// DHT11
+// ==============================
 
 #define DHTPIN D4
 #define DHTTYPE DHT11
-DHT dht(DHTPIN, DHTTYPE);
+
+DHT dht(
+    DHTPIN,
+    DHTTYPE
+);
+
+
+// ==============================
+// Secure MQTT
+// ==============================
 
 WiFiClientSecure secureClient;
-PubSubClient mqttClient(secureClient);
-BearSSL::X509List*    rootCA     = nullptr;
-BearSSL::X509List*    deviceCert = nullptr;
-BearSSL::PrivateKey*  privateKey = nullptr;
+
+PubSubClient mqttClient(
+    secureClient
+);
+
+BearSSL::X509List* rootCA = nullptr;
+
+BearSSL::X509List* deviceCert = nullptr;
+
+BearSSL::PrivateKey* privateKey = nullptr;
+
+
+// ==============================
+// Load certificates
+// ==============================
 
 bool loadCertificates() {
-  Serial.println("\nLoading AWS certificates...");
-  File rootFile = LittleFS.open("/AmazonRootCA1.pem", "r");
-  if (!rootFile) { Serial.println("ERROR: AmazonRootCA1.pem not found!"); return false; }
-  rootCA = new BearSSL::X509List(rootFile, rootFile.size());
+
+  Serial.println(
+      "\nLoading AWS certificates..."
+  );
+
+
+  File rootFile =
+      LittleFS.open(
+          "/AmazonRootCA1.pem",
+          "r"
+      );
+
+
+  if (!rootFile) {
+
+    Serial.println(
+        "ERROR: AmazonRootCA1.pem not found!"
+    );
+
+    return false;
+  }
+
+
+  rootCA =
+      new BearSSL::X509List(
+          rootFile,
+          rootFile.size()
+      );
+
   rootFile.close();
 
-  File certFile = LittleFS.open("/device.crt", "r");
-  if (!certFile) { Serial.println("ERROR: device.crt not found!"); return false; }
-  deviceCert = new BearSSL::X509List(certFile, certFile.size());
+
+  File certFile =
+      LittleFS.open(
+          "/device.crt",
+          "r"
+      );
+
+
+  if (!certFile) {
+
+    Serial.println(
+        "ERROR: device.crt not found!"
+    );
+
+    return false;
+  }
+
+
+  deviceCert =
+      new BearSSL::X509List(
+          certFile,
+          certFile.size()
+      );
+
   certFile.close();
 
-  File keyFile = LittleFS.open("/private.key", "r");
-  if (!keyFile) { Serial.println("ERROR: private.key not found!"); return false; }
-  privateKey = new BearSSL::PrivateKey(keyFile, keyFile.size());
+
+  File keyFile =
+      LittleFS.open(
+          "/private.key",
+          "r"
+      );
+
+
+  if (!keyFile) {
+
+    Serial.println(
+        "ERROR: private.key not found!"
+    );
+
+    return false;
+  }
+
+
+  privateKey =
+      new BearSSL::PrivateKey(
+          keyFile,
+          keyFile.size()
+      );
+
   keyFile.close();
 
-  Serial.println("AWS certificates loaded successfully!");
+
+  Serial.println(
+      "AWS certificates loaded successfully!"
+  );
+
+
   return true;
 }
 
+
+// ==============================
+// WiFi
+// ==============================
+
 void connectWiFi() {
-  Serial.print("\nConnecting to WiFi");
+
+  Serial.print(
+      "\nConnecting to WiFi"
+  );
+
+
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.printf("\nWiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
+
+  WiFi.begin(
+      WIFI_SSID,
+      WIFI_PASSWORD
+  );
+
+
+  while (
+      WiFi.status() != WL_CONNECTED
+  ) {
+
+    delay(500);
+
+    Serial.print(".");
+  }
+
+
+  Serial.printf(
+      "\nWiFi connected! IP: %s\n",
+      WiFi.localIP()
+          .toString()
+          .c_str()
+  );
 }
+
+
+// ==============================
+// NTP time
+// ==============================
 
 void setClock() {
-  Serial.println("\nSynchronizing time...");
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-  time_t now = time(nullptr);
+
+  Serial.println(
+      "\nSynchronizing time..."
+  );
+
+
+  configTime(
+      0,
+      0,
+      "pool.ntp.org",
+      "time.nist.gov"
+  );
+
+
+  time_t now =
+      time(nullptr);
+
+
   int attempts = 0;
-  while (now < 8 * 3600 * 2 && attempts < 30) { delay(500); Serial.print("."); now = time(nullptr); attempts++; }
-  Serial.println(now >= 8 * 3600 * 2 ? "\nTime synchronized!" : "\nWARNING: Time sync failed.");
+
+
+  while (
+      now < 8 * 3600 * 2 &&
+      attempts < 30
+  ) {
+
+    delay(500);
+
+    Serial.print(".");
+
+    now = time(nullptr);
+
+    attempts++;
+  }
+
+
+  if (
+      now >= 8 * 3600 * 2
+  ) {
+
+    Serial.println(
+        "\nTime synchronized!"
+    );
+
+  } else {
+
+    Serial.println(
+        "\nWARNING: Time sync failed."
+    );
+  }
 }
 
+
+// ==============================
+// AWS connection
+// ==============================
+
 void connectAWS() {
-  while (!mqttClient.connected()) {
-    Serial.print("\nConnecting to AWS IoT...");
-    String clientID = "ESP8266-DHT11-" + String(ESP.getChipId());
-    if (mqttClient.connect(clientID.c_str())) {
-      Serial.println("CONNECTED!");
+
+  while (
+      !mqttClient.connected()
+  ) {
+
+    Serial.print(
+        "\nConnecting to AWS IoT..."
+    );
+
+
+    String clientID =
+        "ESP8266-DHT11-" +
+        String(
+            ESP.getChipId()
+        );
+
+
+    if (
+        mqttClient.connect(
+            clientID.c_str()
+        )
+    ) {
+
+      Serial.println(
+          "CONNECTED!"
+      );
+
     } else {
-      Serial.printf("FAILED, MQTT state = %d\n", mqttClient.state());
+
+      Serial.printf(
+          "FAILED, MQTT state = %d\n",
+          mqttClient.state()
+      );
+
       delay(5000);
     }
   }
 }
 
+
+// ==============================
+// Setup
+// ==============================
+
 void setup() {
-  Serial.begin(115200);
+
+  Serial.begin(
+      115200
+  );
+
   delay(1000);
-  Serial.println("\n================================\nESP8266 + DHT11 + AWS IoT Core\n================================");
+
+
+  Serial.println(
+      "\n================================"
+  );
+
+  Serial.println(
+      "ESP8266 + DHT11 + AWS IoT Core"
+  );
+
+  Serial.println(
+      "================================"
+  );
+
+
   dht.begin();
 
-  if (!LittleFS.begin()) { Serial.println("ERROR: LittleFS failed!"); return; }
-  if (!loadCertificates()) { Serial.println("Certificate loading failed!"); return; }
+
+  if (
+      !LittleFS.begin()
+  ) {
+
+    Serial.println(
+        "ERROR: LittleFS failed!"
+    );
+
+    return;
+  }
+
+
+  if (
+      !loadCertificates()
+  ) {
+
+    Serial.println(
+        "Certificate loading failed!"
+    );
+
+    return;
+  }
+
 
   connectWiFi();
+
   setClock();
 
-  secureClient.setTrustAnchors(rootCA);
-  secureClient.setClientRSACert(deviceCert, privateKey);
-  mqttClient.setServer(AWS_ENDPOINT, 8883);
+
+  secureClient.setTrustAnchors(
+      rootCA
+  );
+
+
+  secureClient.setClientRSACert(
+      deviceCert,
+      privateKey
+  );
+
+
+  mqttClient.setServer(
+      AWS_ENDPOINT,
+      8883
+  );
+
+
   connectAWS();
 }
 
+
+// ==============================
+// Main loop
+// ==============================
+
 void loop() {
-  if (!mqttClient.connected()) connectAWS();
+
+  if (
+      !mqttClient.connected()
+  ) {
+
+    connectAWS();
+  }
+
+
   mqttClient.loop();
 
-  float temperature = dht.readTemperature();
-  float humidity = dht.readHumidity();
-  if (isnan(temperature) || isnan(humidity)) { Serial.println("DHT11 reading failed!"); delay(2000); return; }
 
-  String payload = "{\"device\":\"ESP8266-DHT11\",\"temperature\":" + String(temperature, 1) +
-                    ",\"humidity\":" + String(humidity, 1) + "}";
+  float temperature =
+      dht.readTemperature();
 
-  Serial.printf("\nTemperature: %.1f C | Humidity: %.1f %%\n", temperature, humidity);
-  Serial.println("MQTT Payload: " + payload);
 
-  bool success = mqttClient.publish(MQTT_TOPIC, payload.c_str());
-  Serial.println(success ? "AWS: Message published!" : "AWS: Publish FAILED!");
+  float humidity =
+      dht.readHumidity();
+
+
+  if (
+      isnan(temperature) ||
+      isnan(humidity)
+  ) {
+
+    Serial.println(
+        "DHT11 reading failed!"
+    );
+
+    delay(2000);
+
+    return;
+  }
+
+
+  String payload =
+      "{\"device\":\"ESP8266-DHT11\","
+      "\"temperature\":" +
+      String(
+          temperature,
+          1
+      ) +
+      ",\"humidity\":" +
+      String(
+          humidity,
+          1
+      ) +
+      "}";
+
+
+  Serial.printf(
+      "\nTemperature: %.1f C | Humidity: %.1f %%\n",
+      temperature,
+      humidity
+  );
+
+
+  Serial.println(
+      "MQTT Payload: " +
+      payload
+  );
+
+
+  bool success =
+      mqttClient.publish(
+          MQTT_TOPIC,
+          payload.c_str()
+      );
+
+
+  Serial.println(
+      success
+      ? "AWS: Message published!"
+      : "AWS: Publish FAILED!"
+  );
+
 
   delay(5000);
 }</code></pre>
 
-  <h3>Upload order — do both, in order</h3>
-  <div class="grid2">
-    <div class="card"><strong>1. LittleFS upload</strong><br><code>Ctrl+Shift+P</code> → Upload LittleFS to Pico/ESP8266/ESP32 <br><span style="color:var(--muted)">(sends the 3 certificate files)</span></div>
-    <div class="card"><strong>2. Sketch upload</strong><br>Normal <b>Upload →</b> button <br><span style="color:var(--muted)">(sends AWS_DHT11.ino)</span></div>
-  </div>
+    </div>
+
+
+    <h3>Upload order</h3>
+
+    <div class="grid2">
+
+        <div class="card">
+
+            <div class="icon">
+                01
+            </div>
+
+            <strong>
+                Upload LittleFS
+            </strong>
+
+            <p>
+                Ctrl + Shift + P →
+                Upload LittleFS
+            </p>
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="icon">
+                02
+            </div>
+
+            <strong>
+                Upload sketch
+            </strong>
+
+            <p>
+                Click the normal
+                Arduino Upload button.
+            </p>
+
+        </div>
+
+    </div>
+
 </section>
 
-<section id="ab">
-  <h2 class="part"><span class="num">AB</span>See the data arrive in AWS</h2>
-  <p>Open <strong>Tools → Serial Monitor</strong> at <code>115200</code> — you should see WiFi connect, time sync, then <code>CONNECTED!</code> and messages publishing every 5 seconds.</p>
-  <p>In AWS IoT Core, open <strong>MQTT test client → Subscribe to a topic</strong>, enter:</p>
-  <pre><code>home/esp8266/dht11</code></pre>
-  <p>Within a few seconds you'll see live JSON like:</p>
-  <pre><code>{
+
+<!-- =========================
+     AB
+========================= -->
+
+<section id="ab" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">AB</div>
+
+        <div>
+            <h2>Watch the data arrive</h2>
+
+            <p>
+                This is the moment everything comes together.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="architecture">
+
+        <div class="arch-node">
+
+            <span class="emoji">🌡️</span>
+
+            DHT11
+
+            <span class="arch-arrow">→</span>
+
+        </div>
+
+
+        <div class="arch-node">
+
+            <span class="emoji">📡</span>
+
+            ESP8266
+
+            <span class="arch-arrow">→</span>
+
+        </div>
+
+
+        <div class="arch-node">
+
+            <span class="emoji">🔐</span>
+
+            TLS
+
+            <span class="arch-arrow">→</span>
+
+        </div>
+
+
+        <div class="arch-node">
+
+            <span class="emoji">☁️</span>
+
+            AWS IoT
+
+            <span class="arch-arrow">→</span>
+
+        </div>
+
+
+        <div class="arch-node">
+
+            <span class="emoji">📊</span>
+
+            MQTT
+
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Subscribe to your topic</h3>
+
+        <div class="path">
+AWS IoT Core
+→ MQTT test client
+→ Subscribe to a topic
+        </div>
+
+        <br>
+
+<pre><code>home/esp8266/dht11</code></pre>
+
+    </div>
+
+
+    <div class="notice success">
+
+        <div class="notice-icon">
+            ✓
+        </div>
+
+        <div>
+
+            <strong>Expected message</strong>
+
+            <p>
+                You should see a new JSON message every
+                few seconds.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="code-wrapper">
+
+<pre><code>{
   "device": "ESP8266-DHT11",
   "temperature": 28.0,
   "humidity": 63.0
 }</code></pre>
-  <div class="ok">🎉 Your DHT11 is now sending live data to AWS IoT Core over secure TLS.</div>
 
-  <h3>What each certificate does</h3>
-  <div class="diagram">AmazonRootCA1.pem  →  ESP8266 verifies it's really talking to AWS
-device.crt         →  AWS identifies this specific ESP8266
-private.key        →  ESP8266 proves it owns that certificate</div>
+    </div>
+
+
+    <div class="card">
+
+        <h3>What the certificates do</h3>
+
+<pre><code>AmazonRootCA1.pem
+        ↓
+ESP8266 verifies AWS
+
+device.crt
+        ↓
+AWS identifies the device
+
+private.key
+        ↓
+ESP8266 proves ownership</code></pre>
+
+    </div>
+
 </section>
 
-<section id="ad">
-  <h2 class="part"><span class="num">AD</span>Troubleshooting</h2>
-  <table>
-    <tr><th>Message</th><th>Likely fix</th></tr>
-    <tr><td><code>LittleFS failed!</code></td><td>Re-check board selection, re-run the LittleFS upload.</td></tr>
-    <tr><td><code>AmazonRootCA1.pem not found</code></td><td>File must be inside <code>data/</code>, not the sketch root — re-upload LittleFS.</td></tr>
-    <tr><td><code>device.crt / private.key not found</code></td><td>Confirm exact filenames inside <code>data/</code>.</td></tr>
-    <tr><td>WiFi won't connect</td><td>Check SSID/password, signal range, and that the network is 2.4GHz (ESP8266 can't use 5GHz).</td></tr>
-    <tr><td><code>MQTT state = -2</code></td><td>Check endpoint, WiFi, certs, and that the clock synced.</td></tr>
-    <tr><td><code>MQTT state = 5</code></td><td>Usually authorization — confirm cert is ACTIVE, policy is attached, and it allows <code>iot:Connect</code>.</td></tr>
-  </table>
-  <div class="warn"><strong>Time matters:</strong> TLS certificate validation depends on the ESP8266 having the correct time — that's why <code>configTime()</code> runs before connecting.</div>
+
+<!-- =========================
+     AD
+========================= -->
+
+<section id="ad" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">AD</div>
+
+        <div>
+            <h2>Troubleshooting</h2>
+
+            <p>
+                Find the layer that failed instead of changing everything.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Error</th>
+                    <th>Check</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+                    <td>
+                        <code>LittleFS failed!</code>
+                    </td>
+
+                    <td>
+                        Board selection and LittleFS upload.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        <code>AmazonRootCA1.pem not found</code>
+                    </td>
+
+                    <td>
+                        Check the <code>data/</code> folder
+                        and upload LittleFS again.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        <code>device.crt not found</code>
+                    </td>
+
+                    <td>
+                        Verify the exact filename.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        <code>private.key not found</code>
+                    </td>
+
+                    <td>
+                        Verify the key exists inside LittleFS.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        Wi-Fi won't connect
+                    </td>
+
+                    <td>
+                        Check credentials and use a 2.4 GHz network.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        <code>MQTT state = -2</code>
+                    </td>
+
+                    <td>
+                        Check endpoint, Wi-Fi, certificates and time.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        <code>MQTT state = 5</code>
+                    </td>
+
+                    <td>
+                        Check certificate status and IoT policy.
+                    </td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <div class="notice">
+
+        <div class="notice-icon">
+            ⏱️
+        </div>
+
+        <div>
+
+            <strong>Don't forget NTP time</strong>
+
+            <p>
+                TLS certificate validation depends on the device
+                having a correct clock.
+            </p>
+
+        </div>
+
+    </div>
+
 </section>
 
-<section id="af">
-  <h2 class="part"><span class="num">AF</span>Full checklist</h2>
-  <p>Work through this <em>in order</em> — don't skip ahead if a step isn't working yet.</p>
-  <ul class="checklist">
-    <li><input type="checkbox">Install ESP8266 board package</li>
-    <li><input type="checkbox">Select NodeMCU 1.0 (ESP‑12E)</li>
-    <li><input type="checkbox">Install DHT, Adafruit Unified Sensor, PubSubClient libraries</li>
-    <li><input type="checkbox">Test the DHT11 locally</li>
-    <li><input type="checkbox">Create AWS IoT Thing</li>
-    <li><input type="checkbox">Create &amp; activate certificate</li>
-    <li><input type="checkbox">Create IoT policy and attach it to the certificate</li>
-    <li><input type="checkbox">Download device cert, private key, and AmazonRootCA1.pem</li>
-    <li><input type="checkbox">Get the AWS IoT Data-ATS endpoint</li>
-    <li><input type="checkbox">Install the LittleFS uploader plugin</li>
-    <li><input type="checkbox">Put the 3 certificate files in <code>data/</code> and upload via LittleFS</li>
-    <li><input type="checkbox">Confirm files exist on the device</li>
-    <li><input type="checkbox">Fill in WiFi + AWS endpoint in the sketch, upload it</li>
-    <li><input type="checkbox">Open Serial Monitor, confirm "CONNECTED!"</li>
-    <li><input type="checkbox">Subscribe to <code>home/esp8266/dht11</code> in the MQTT test client and see live JSON</li>
-  </ul>
 
-  <h3>Where to go next</h3>
-  <div class="diagram">ESP8266 → AWS IoT Core → IoT Rule → DynamoDB → API → Web Dashboard</div>
-  <p>That path lets you store historical readings and graph them, instead of only watching live MQTT messages.</p>
+<!-- =========================
+     AF
+========================= -->
+
+<section id="af" class="reveal">
+
+    <div class="section-heading">
+
+        <div class="number">AF</div>
+
+        <div>
+            <h2>Final checklist</h2>
+
+            <p>
+                Complete every item before calling the project finished.
+            </p>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="check-progress">
+
+            <div class="progress-label">
+
+                <span>
+                    Build progress
+                </span>
+
+                <span id="checkCount">
+                    0 / 15
+                </span>
+
+            </div>
+
+            <div class="progress-track">
+
+                <div
+                    class="progress-fill"
+                    id="checkProgress"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <ul class="checklist" id="checklist">
+
+            <li>
+                <input type="checkbox">
+                <span>Install ESP8266 board package</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Select NodeMCU 1.0 (ESP-12E)</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Install DHT libraries</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Install PubSubClient</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Test the DHT11 locally</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Create AWS IoT Thing</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Create and activate certificate</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Create IoT policy</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Attach policy to certificate</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Download all certificates</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Get AWS IoT endpoint</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Install LittleFS uploader</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Upload certificate files</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Upload final ESP8266 sketch</span>
+            </li>
+
+            <li>
+                <input type="checkbox">
+                <span>Receive MQTT data in AWS</span>
+            </li>
+
+        </ul>
+
+    </div>
+
+
+    <h3>Where you can go next</h3>
+
+
+    <div class="architecture">
+
+        <div class="arch-node">
+            <span class="emoji">📡</span>
+            ESP8266
+            <span class="arch-arrow">→</span>
+        </div>
+
+        <div class="arch-node">
+            <span class="emoji">☁️</span>
+            AWS IoT
+            <span class="arch-arrow">→</span>
+        </div>
+
+        <div class="arch-node">
+            <span class="emoji">⚙️</span>
+            IoT Rule
+            <span class="arch-arrow">→</span>
+        </div>
+
+        <div class="arch-node">
+            <span class="emoji">🗄️</span>
+            Database
+            <span class="arch-arrow">→</span>
+        </div>
+
+        <div class="arch-node">
+            <span class="emoji">📊</span>
+            Dashboard
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Next-level architecture</h3>
+
+        <p>
+            Once the basic pipeline works, you can extend it
+            into a complete IoT monitoring platform:
+        </p>
+
+        <div class="badges">
+
+            <span class="badge">
+                AWS IoT Rules
+            </span>
+
+            <span class="badge">
+                DynamoDB
+            </span>
+
+            <span class="badge">
+                Lambda
+            </span>
+
+            <span class="badge">
+                API Gateway
+            </span>
+
+            <span class="badge">
+                Web Dashboard
+            </span>
+
+            <span class="badge">
+                Historical Charts
+            </span>
+
+        </div>
+
+    </div>
+
 </section>
 
-</div>
-<footer>ESP8266 + DHT11 + AWS IoT Core — beginner build guide</footer>
-<a class="top" href="#" aria-label="Back to top">↑</a>
+
+</main>
+
+
+<footer>
+
+    <div class="footer-line"></div>
+
+    <strong>
+        ESP8266 + DHT11 + AWS IoT Core
+    </strong>
+
+    <br>
+
+    Beginner IoT Build Guide
+
+    <br><br>
+
+    Made for
+    <strong>
+        Students of CSE B · 2024–2027
+    </strong>
+
+</footer>
+
+
+<!-- MOBILE NAV -->
+
+<nav class="mobile-nav">
+
+    <a href="#a">
+        <span>🏠</span>
+        Start
+    </a>
+
+    <a href="#b">
+        <span>🔌</span>
+        Wiring
+    </a>
+
+    <a href="#i">
+        <span>☁️</span>
+        AWS
+    </a>
+
+    <a href="#x">
+        <span>💻</span>
+        Code
+    </a>
+
+    <a href="#af">
+        <span>✓</span>
+        Finish
+    </a>
+
+</nav>
+
+
+<a
+    href="#"
+    class="top"
+    id="topButton"
+    aria-label="Back to top"
+>
+    ↑
+</a>
+
 
 <script>
-  var overlay = document.getElementById('welcomeOverlay');
-  var closeBtn = document.getElementById('welcomeClose');
-  window.addEventListener('load', function(){
-    setTimeout(function(){ overlay.classList.add('show'); }, 200);
-  });
-  function closeWelcome(){ overlay.classList.remove('show'); }
-  closeBtn.addEventListener('click', closeWelcome);
-  overlay.addEventListener('click', function(e){ if(e.target === overlay) closeWelcome(); });
+
+/* ==========================================
+   WELCOME MODAL
+========================================== */
+
+const overlay =
+    document.getElementById("welcomeOverlay");
+
+const closeBtn =
+    document.getElementById("welcomeClose");
+
+
+window.addEventListener(
+    "load",
+    () => {
+
+        setTimeout(
+            () => {
+
+                overlay.classList.add("show");
+
+                document.body.classList.add(
+                    "modal-open"
+                );
+
+            },
+            450
+        );
+
+    }
+);
+
+
+function closeWelcome(){
+
+    overlay.classList.remove("show");
+
+    document.body.classList.remove(
+        "modal-open"
+    );
+
+}
+
+
+closeBtn.addEventListener(
+    "click",
+    closeWelcome
+);
+
+
+overlay.addEventListener(
+    "click",
+    e => {
+
+        if(
+            e.target === overlay
+        ){
+
+            closeWelcome();
+
+        }
+
+    }
+);
+
+
+/* ==========================================
+   THEME
+========================================== */
+
+const themeButton =
+    document.getElementById(
+        "themeToggle"
+    );
+
+
+const savedTheme =
+    localStorage.getItem(
+        "iot-theme"
+    );
+
+
+if(savedTheme){
+
+    document.documentElement
+        .setAttribute(
+            "data-theme",
+            savedTheme
+        );
+
+}
+
+
+function updateThemeIcon(){
+
+    const dark =
+        document.documentElement
+            .getAttribute("data-theme")
+        === "dark";
+
+    themeButton.textContent =
+        dark ? "☀️" : "🌙";
+
+}
+
+
+updateThemeIcon();
+
+
+themeButton.addEventListener(
+    "click",
+    () => {
+
+        const current =
+            document.documentElement
+                .getAttribute("data-theme");
+
+        const next =
+            current === "dark"
+            ? "light"
+            : "dark";
+
+        document.documentElement
+            .setAttribute(
+                "data-theme",
+                next
+            );
+
+        localStorage.setItem(
+            "iot-theme",
+            next
+        );
+
+        updateThemeIcon();
+
+    }
+);
+
+
+/* ==========================================
+   SCROLL REVEAL
+========================================== */
+
+const revealObserver =
+    new IntersectionObserver(
+        entries => {
+
+            entries.forEach(
+                entry => {
+
+                    if(
+                        entry.isIntersecting
+                    ){
+
+                        entry.target
+                            .classList
+                            .add("visible");
+
+                    }
+
+                }
+            );
+
+        },
+        {
+            threshold:.12
+        }
+    );
+
+
+document
+    .querySelectorAll(".reveal")
+    .forEach(
+        element =>
+            revealObserver.observe(
+                element
+            )
+    );
+
+
+/* ==========================================
+   READING PROGRESS
+========================================== */
+
+const progress =
+    document.getElementById(
+        "progress"
+    );
+
+
+function updateProgress(){
+
+    const scrollTop =
+        window.scrollY;
+
+    const height =
+        document.documentElement
+            .scrollHeight
+        -
+        document.documentElement
+            .clientHeight;
+
+    const percent =
+        height > 0
+        ? (scrollTop / height) * 100
+        : 0;
+
+    progress.style.width =
+        percent + "%";
+
+}
+
+
+window.addEventListener(
+    "scroll",
+    updateProgress,
+    {passive:true}
+);
+
+
+/* ==========================================
+   BACK TO TOP
+========================================== */
+
+const topButton =
+    document.getElementById(
+        "topButton"
+    );
+
+
+window.addEventListener(
+    "scroll",
+    () => {
+
+        if(
+            window.scrollY > 500
+        ){
+
+            topButton.classList
+                .add("show");
+
+        }else{
+
+            topButton.classList
+                .remove("show");
+
+        }
+
+    },
+    {passive:true}
+);
+
+
+/* ==========================================
+   ACTIVE NAV
+========================================== */
+
+const sections =
+    document.querySelectorAll(
+        "section[id]"
+    );
+
+const navLinks =
+    document.querySelectorAll(
+        ".nav-links a"
+    );
+
+
+const navObserver =
+    new IntersectionObserver(
+        entries => {
+
+            entries.forEach(
+                entry => {
+
+                    if(
+                        entry.isIntersecting
+                    ){
+
+                        navLinks
+                            .forEach(
+                                link =>
+                                    link.classList
+                                        .remove(
+                                            "active"
+                                        )
+                            );
+
+
+                        const active =
+                            document.querySelector(
+                                `.nav-links a[href="#${entry.target.id}"]`
+                            );
+
+
+                        if(active){
+
+                            active.classList
+                                .add(
+                                    "active"
+                                );
+
+                        }
+
+                    }
+
+                }
+            );
+
+        },
+        {
+            rootMargin:
+                "-25% 0px -65% 0px"
+        }
+    );
+
+
+sections.forEach(
+    section =>
+        navObserver.observe(
+            section
+        )
+);
+
+
+/* ==========================================
+   COPY BUTTONS
+========================================== */
+
+document
+    .querySelectorAll(".copy")
+    .forEach(
+        button => {
+
+            button.addEventListener(
+                "click",
+                async () => {
+
+                    const code =
+                        button
+                            .nextElementSibling
+                            .innerText;
+
+
+                    try{
+
+                        await navigator
+                            .clipboard
+                            .writeText(
+                                code
+                            );
+
+                        const original =
+                            button.textContent;
+
+                        button.textContent =
+                            "Copied ✓";
+
+                        setTimeout(
+                            () => {
+
+                                button.textContent =
+                                    original;
+
+                            },
+                            1500
+                        );
+
+                    }catch(error){
+
+                        button.textContent =
+                            "Copy failed";
+
+                        setTimeout(
+                            () => {
+
+                                button.textContent =
+                                    "Copy";
+
+                            },
+                            1500
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+    );
+
+
+/* ==========================================
+   CHECKLIST
+========================================== */
+
+const checklist =
+    document.getElementById(
+        "checklist"
+    );
+
+const checkProgress =
+    document.getElementById(
+        "checkProgress"
+    );
+
+const checkCount =
+    document.getElementById(
+        "checkCount"
+    );
+
+
+const checks =
+    checklist.querySelectorAll(
+        "input[type='checkbox']"
+    );
+
+
+function updateChecklist(){
+
+    let completed = 0;
+
+
+    checks.forEach(
+        (checkbox,index) => {
+
+            if(
+                checkbox.checked
+            ){
+
+                completed++;
+
+                checkbox
+                    .closest("li")
+                    .classList
+                    .add("done");
+
+            }else{
+
+                checkbox
+                    .closest("li")
+                    .classList
+                    .remove("done");
+
+            }
+
+        }
+    );
+
+
+    const percent =
+        (completed / checks.length)
+        * 100;
+
+
+    checkProgress.style.width =
+        percent + "%";
+
+
+    checkCount.textContent =
+        `${completed} / ${checks.length}`;
+
+
+    localStorage.setItem(
+        "iot-checklist",
+        JSON.stringify(
+            Array.from(checks)
+                .map(
+                    checkbox =>
+                        checkbox.checked
+                )
+        )
+    );
+
+}
+
+
+const storedChecks =
+    localStorage.getItem(
+        "iot-checklist"
+    );
+
+
+if(storedChecks){
+
+    try{
+
+        const values =
+            JSON.parse(
+                storedChecks
+            );
+
+        checks.forEach(
+            (checkbox,index) => {
+
+                checkbox.checked =
+                    Boolean(
+                        values[index]
+                    );
+
+            }
+        );
+
+    }catch(error){}
+
+}
+
+
+checks.forEach(
+    checkbox => {
+
+        checkbox.addEventListener(
+            "change",
+            updateChecklist
+        );
+
+    }
+);
+
+
+updateChecklist();
+
+
+/* ==========================================
+   KEYBOARD ESC MODAL
+========================================== */
+
+document.addEventListener(
+    "keydown",
+    e => {
+
+        if(
+            e.key === "Escape" &&
+            overlay.classList.contains(
+                "show"
+            )
+        ){
+
+            closeWelcome();
+
+        }
+
+    }
+);
+
+
+/* ==========================================
+   INITIAL
+========================================== */
+
+updateProgress();
+
 </script>
+
 </body>
 </html>
